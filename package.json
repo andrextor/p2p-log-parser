@@ -20,14 +20,17 @@
   "scripts": {
     "build": "tsc && vite build",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.3",
     "@types/node": "^20.11.24",
     "typescript": "^5.3.3",
     "vite": "^8.0.2",
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4"
   },
   "keywords": [
     "placetopay",
