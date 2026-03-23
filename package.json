@@ -1,7 +1,10 @@
 {
   "name": "@p2p/log-parser",
   "version": "1.0.0",
-  "description": "Librería para parsear y enmascarar datos sensibles de logs de la pasarela Placetopay.",
+  "description": "A secure, strictly-typed library designed to parse and mask sensitive transaction data from Placetopay JSON payloads.",
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Iván Andrés López <ialopez11012@gmail.com>",
   "license": "MIT",
   "type": "module",
