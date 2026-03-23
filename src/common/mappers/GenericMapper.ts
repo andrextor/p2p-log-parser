@@ -1,12 +1,12 @@
 import {
-  LogEvent,
-  LogLevel,
   AppTypes,
-  NormalizedLogData,
-  RestDetails,
+  type LogEvent,
+  type LogLevel,
+  type NormalizedLogData,
+  type RestDetails,
 } from "@/types";
-import { LogMapper } from "./BaseMapper";
 import { buildEventId, extractTimestamp } from "@/utils/mapper";
+import type { LogMapper } from "./BaseMapper";
 
 export class GenericMapper implements LogMapper {
   canHandle(_data: NormalizedLogData): boolean {

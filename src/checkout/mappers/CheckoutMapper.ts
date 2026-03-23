@@ -1,17 +1,17 @@
 import {
   AppTypes,
-  LogEvent,
-  LogLevel,
-  LogCategory,
-  NormalizedLogData,
-  CheckoutDetails,
+  type CheckoutDetails,
+  type LogCategory,
+  type LogEvent,
+  type LogLevel,
+  type NormalizedLogData,
 } from "@/types";
-import { LogMapper } from "../../common/mappers/BaseMapper";
 import {
   buildEventId,
-  normalizePath,
   extractHttpFromMessage,
+  normalizePath,
 } from "@/utils/mapper";
+import type { LogMapper } from "../../common/mappers/BaseMapper";
 import { CheckoutActionMap } from "../constants/CheckoutActions";
 
 export class CheckoutMapper implements LogMapper {
@@ -81,18 +81,27 @@ export class CheckoutMapper implements LogMapper {
       );
       category = msgRaw.includes("Req") ? "HTTP_REQ_OUT" : "HTTP_RES";
 
+      const rStatus = responseBody.status as
+        | Record<string, unknown>
+        | undefined;
+      const statusSuffix = rStatus?.status ? ` [${rStatus.status}]` : "";
+      const reasonSuffix =
+        rStatus?.reason && rStatus.status !== "OK"
+          ? ` (${rStatus.reason})`
+          : "";
+
       if (requestUrl.includes("/otp/generate"))
-        displayMessage = "Gateway: OTP Generation";
+        displayMessage = `Gateway: OTP Generation${statusSuffix}`;
       else if (requestUrl.includes("/otp/validate"))
-        displayMessage = "Gateway: OTP Validation";
+        displayMessage = `Gateway: OTP Validation${statusSuffix}${reasonSuffix}`;
       else if (requestUrl.includes("/mpi/lookup"))
-        displayMessage = "Gateway: 3DS Lookup (MPI)";
+        displayMessage = `Gateway: 3DS Lookup (MPI)${statusSuffix}`;
       else if (requestUrl.includes("/process"))
-        displayMessage = "Gateway: Process Payment";
+        displayMessage = `Gateway: Process Payment${statusSuffix}${reasonSuffix}`;
       else if (requestUrl.includes("/collect"))
-        displayMessage = "Gateway: Collect";
+        displayMessage = `Gateway: Collect${statusSuffix}${reasonSuffix}`;
       else if (requestUrl.includes("/information"))
-        displayMessage = "Gateway: Instrument Information";
+        displayMessage = `Gateway: Instrument Information${statusSuffix}`;
       else
         displayMessage = `Gateway: ${msgRaw.includes("Req") ? "Outgoing Request" : "Response"}`;
     } else if (isCoreApiLog && requestUrl.includes("/core/tokenize")) {
@@ -148,6 +157,11 @@ export class CheckoutMapper implements LogMapper {
       displayMessage = msgRaw.toLowerCase().includes("otp")
         ? "OTP Validation Error"
         : "Validation Error (Request)";
+
+      const gatewayName = ctx.gateway
+        ? ` [${String(ctx.gateway).toUpperCase()}]`
+        : "";
+      displayMessage += gatewayName;
     }
 
     const httpInfo = extractHttpFromMessage(msgRaw);

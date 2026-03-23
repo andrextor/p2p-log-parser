@@ -1,4 +1,4 @@
-import { LogEvent, NormalizedLogData } from "@/types";
+import type { LogEvent, NormalizedLogData } from "@/types";
 
 export interface LogMapper {
   /**

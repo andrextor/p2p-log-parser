@@ -1,5 +1,5 @@
-import { NormalizedLogData } from "@/types";
-import { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
+import type { NormalizedLogData } from "@/types";
+import type { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
 
 export class CheckoutLocalParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {

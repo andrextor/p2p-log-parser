@@ -1,4 +1,4 @@
-import { NormalizedLogData } from "@/types";
+import type { NormalizedLogData } from "@/types";
 
 export interface LogExtractionStrategy {
   /**

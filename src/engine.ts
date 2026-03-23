@@ -1,15 +1,28 @@
-import { AppTypes, AppType, LogEvent, NormalizedLogData } from "@/types";
-import { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
+import {
+  type AppType,
+  AppTypes,
+  type LogEvent,
+  type NormalizedLogData,
+} from "@/types";
+import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
 import { CheckoutAwsCsvParser } from "./checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutInsightsParser } from "./checkout/strategies/CheckoutInsightsParser";
 import { CheckoutLocalParser } from "./checkout/strategies/CheckoutLocalParser";
-import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
-import { LogMapper } from "./common/mappers/BaseMapper";
-import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
+import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
+import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
+import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
+
+export interface ParseMetadata {
+  totalSessions: number;
+  sessionIds: string[];
+  totalEvents: number;
+}
 
 export interface ParseResult {
   events: LogEvent[];
+  groupedBySession?: Record<string, LogEvent[]>;
+  metadata?: ParseMetadata;
   errors: { line: number; reason: string; content: string }[];
 }
 
@@ -105,7 +118,45 @@ export class P2PParserEngine {
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
 
-    return { events: sortedEvents, errors };
+    // 4. Session grouping and metadata
+    const groupedBySession: Record<string, LogEvent[]> = {};
+    const sessionIds = new Set<string>();
+
+    for (const event of sortedEvents) {
+      let sessionId = "unknown";
+      if (
+        event.details &&
+        "sessionId" in event.details &&
+        event.details.sessionId
+      ) {
+        sessionId = String(event.details.sessionId);
+      }
+
+      if (!groupedBySession[sessionId]) {
+        groupedBySession[sessionId] = [];
+      }
+      groupedBySession[sessionId].push(event);
+
+      if (sessionId !== "unknown") {
+        sessionIds.add(sessionId);
+      }
+    }
+
+    let metadata: ParseMetadata | undefined;
+    if (sessionIds.size > 1) {
+      metadata = {
+        totalSessions: sessionIds.size,
+        sessionIds: Array.from(sessionIds),
+        totalEvents: sortedEvents.length,
+      };
+    }
+
+    return {
+      events: sortedEvents,
+      groupedBySession,
+      metadata,
+      errors,
+    };
   }
 
   private splitLogicalUnits(line: string): string[] {
