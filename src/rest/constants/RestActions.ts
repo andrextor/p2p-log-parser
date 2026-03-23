@@ -1,4 +1,4 @@
-import { LogCategory } from "@/types";
+import type { LogCategory } from "@/types";
 
 export interface RestActionDetail {
   message: string;

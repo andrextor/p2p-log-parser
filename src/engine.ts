@@ -8,10 +8,10 @@ import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
 import { CheckoutAwsCsvParser } from "./checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutInsightsParser } from "./checkout/strategies/CheckoutInsightsParser";
 import { CheckoutLocalParser } from "./checkout/strategies/CheckoutLocalParser";
-import { RestMapper } from "./rest/mappers/RestMapper";
 import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
 import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
+import { RestMapper } from "./rest/mappers/RestMapper";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
 
 export interface ParseMetadata {
@@ -138,8 +138,8 @@ export class P2PParserEngine {
 
       const eventDate = new Date(event.timestamp);
       // Group by minute: YYYY-MM-DD HH:mm
-      let executionTime = isNaN(eventDate.getTime()) 
-        ? "unknown_time" 
+      const executionTime = Number.isNaN(eventDate.getTime())
+        ? "unknown_time"
         : eventDate.toISOString().substring(0, 16).replace("T", " ");
 
       if (!groupedBySession[sessionId]) {

@@ -216,7 +216,13 @@ export class CheckoutMapper implements LogMapper {
       source,
       provider,
       payload: ctx.payload || ctx.data || ctx,
-      title: msgRaw && msgRaw.trim() !== "HTTP Req" && msgRaw.trim() !== "HTTP Res" && !msgRaw.includes("[GW_LIB]") ? msgRaw : undefined,
+      title:
+        msgRaw &&
+        msgRaw.trim() !== "HTTP Req" &&
+        msgRaw.trim() !== "HTTP Res" &&
+        !msgRaw.includes("[GW_LIB]")
+          ? msgRaw
+          : undefined,
     };
 
     return {

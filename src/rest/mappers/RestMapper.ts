@@ -1,14 +1,49 @@
+import type { LogMapper } from "@/common/mappers/BaseMapper";
 import {
   AppTypes,
-  LogEvent,
-  LogLevel,
-  LogCategory,
-  RestDetails,
-  NormalizedLogData,
+  type LogCategory,
+  type LogEvent,
+  type LogLevel,
+  type NormalizedLogData,
+  type RestDetails,
 } from "@/types";
-import { LogMapper } from "@/common/mappers/BaseMapper";
 import { buildEventId } from "@/utils/mapper";
 import { REST_ACTION_MAP } from "../constants/RestActions";
+
+interface RestInternalException {
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface RestInternalData {
+  dinBody?: { recordsCount?: number; [key: string]: unknown };
+  dinError?: { code?: number | string; message?: string };
+  [key: string]: unknown;
+}
+
+interface RestInternalContext {
+  endpoint?: string;
+  method?: string;
+  exception?: RestInternalException;
+  data?: RestInternalData;
+  [key: string]: unknown;
+}
+
+interface RestInternalPayload {
+  provider?: string;
+  TENANT_DOMAIN?: string;
+  service?: string;
+  operation?: string;
+  endpoint?: string;
+  action?: string;
+  reference?: string;
+  id?: string | number;
+  exception?: RestInternalException;
+  error?: { code?: number | string; message?: string };
+  context?: RestInternalContext;
+  data?: RestInternalData;
+  [key: string]: unknown;
+}
 
 export class RestMapper implements LogMapper {
   /**
@@ -17,7 +52,9 @@ export class RestMapper implements LogMapper {
   canHandle(data: NormalizedLogData): boolean {
     const msg = String(data.message || "");
     const context = data.context as Record<string, unknown>;
-    const isLaravelFile = String(context?.filePath || "").includes("laravel.log");
+    const isLaravelFile = String(context?.filePath || "").includes(
+      "laravel.log",
+    );
     const hasLaravelPattern =
       /production\.(INFO|ALERT|WARNING|CRITICAL|ERROR|NOTICE|DEBUG)/.test(msg);
 
@@ -38,7 +75,9 @@ export class RestMapper implements LogMapper {
     return (
       String(event.id).toLowerCase() === tId ||
       String(details?.awsRequestId).toLowerCase() === tId ||
-      String((event.context as Record<string, unknown>)?.messageId).toLowerCase() === tId ||
+      String(
+        (event.context as Record<string, unknown>)?.messageId,
+      ).toLowerCase() === tId ||
       // Search by Hash ID (Interdin Case)
       String(payload?.id || "")
         .toLowerCase()
@@ -55,7 +94,7 @@ export class RestMapper implements LogMapper {
     const nrContext = (data.context || {}) as Record<string, unknown>;
 
     // 1. EXTRACT INTERNAL JSON (Handles truncated and multi-block)
-    const internalData = this.parseInternalJson(msgRaw) as Record<string, any>;
+    const internalData = this.parseInternalJson(msgRaw) as RestInternalPayload;
 
     // 2. ORIGIN DETECTION AND BASIC METADATA
     const isLaravelLog = msgRaw.includes("production.");
@@ -64,25 +103,26 @@ export class RestMapper implements LogMapper {
     // Dynamic provider extraction
     const provider = String(
       internalData?.provider ||
-      internalData?.TENANT_DOMAIN ||
-      internalData?.service ||
-      (isLaravelLog ? "LARAVEL" : "API_REST")
+        internalData?.TENANT_DOMAIN ||
+        internalData?.service ||
+        (isLaravelLog ? "LARAVEL" : "API_REST"),
     );
 
     const operation = String(
-      internalData?.operation || (isLaravelLog ? "System Log" : "API Operation")
+      internalData?.operation ||
+        (isLaravelLog ? "System Log" : "API Operation"),
     );
 
     // 3. ENDPOINT EXTRACTION
     const extractedEndpoint = String(
       internalData?.context?.endpoint ||
-      internalData?.endpoint ||
-      nrContext.filePath ||
-      "unknown"
+        internalData?.endpoint ||
+        nrContext.filePath ||
+        "unknown",
     );
 
     const extractedMethod = String(
-      internalData?.context?.method || (isLaravelLog ? "DEBUG" : "POST")
+      internalData?.context?.method || (isLaravelLog ? "DEBUG" : "POST"),
     );
 
     let category: LogCategory = "BACKEND_LOG";
@@ -116,8 +156,8 @@ export class RestMapper implements LogMapper {
       // Response metadata
       const body =
         internalData?.context?.data?.dinBody || internalData?.data?.dinBody;
-      if (body?.numeroRegistros > 0 && category === "HTTP_RES") {
-        displayMessage += ` (${body.numeroRegistros} records)`;
+      if ((body?.recordsCount ?? 0) > 0 && category === "HTTP_RES") {
+        displayMessage += ` (${body?.recordsCount} records)`;
       }
     }
 
@@ -134,16 +174,18 @@ export class RestMapper implements LogMapper {
 
     if (exception) {
       category = "ERROR";
-      const codeMatch = String(exception.message || "").match(/`(\d{3})`/);
+      const codeMatch = String(
+        (exception as RestInternalException).message || "",
+      ).match(/`(\d{3})`/);
       statusCode = codeMatch ? codeMatch[1] : 500;
       displayMessage = `Critical Failure [${provider}]: ${String(
-        exception.message || ""
+        (exception as RestInternalException).message || "",
       ).substring(0, 60)}...`;
-    } else if (bizError && bizError.codigo && bizError.codigo !== "0000") {
+    } else if (bizError?.code && bizError.code !== "0000") {
       category = "ERROR";
-      statusCode = bizError.codigo;
+      statusCode = bizError.code;
       displayMessage = `${provider} | Error ${statusCode}: ${
-        bizError.mensaje || "Failed Op."
+        bizError.message || "Failed Op."
       }`;
     } else {
       statusCode = category === "HTTP_RES" ? 200 : null;
@@ -155,7 +197,9 @@ export class RestMapper implements LogMapper {
       operation: internalData?.reference
         ? `REF: ${internalData.reference}`
         : operation,
-      action: String(internalData?.action || (isLaravelLog ? "LOG_EVENT" : "N/A")),
+      action: String(
+        internalData?.action || (isLaravelLog ? "LOG_EVENT" : "N/A"),
+      ),
       method: extractedMethod,
       endpoint: extractedEndpoint,
       statusCode,
@@ -194,7 +238,7 @@ export class RestMapper implements LogMapper {
     }
 
     if (rawJson.includes("} {")) {
-      rawJson = rawJson.split("} {")[0] + "}";
+      rawJson = `${rawJson.split("} {")[0]}}`;
     }
 
     try {
