@@ -1,7 +1,6 @@
-/**
- * @module @p2p/log-parser
- * Punto de entrada principal de la librería.
- */
+// Export the Core Engine
+export { P2PParserEngine } from "./engine";
+export type { ParseResult } from "./engine";
 
-export { P2PLogParser } from '@/core/parser';
-export type { ParserOptions, LogPayload } from '@/types';
+// Export domain types commonly used by clients
+export * from "./types";
