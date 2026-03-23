@@ -1,0 +1,19 @@
+# Archivos y carpetas a ignorar en el paquete de npm
+
+# Archivos de configuración
+.DS_Store
+.gitignore
+biome.json
+tsconfig.json
+vite.config.ts
+
+# Dependencias y logs
+node_modules
+npm-debug.log
+
+# Código fuente (la distribución está en /dist)
+src
+
+# Archivos de documentación y guías
+DEVELOPMENT_GUIDELINES.md
+README.md

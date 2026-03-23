@@ -1,0 +1,38 @@
+{
+  "name": "@p2p/log-parser",
+  "version": "1.0.0",
+  "description": "Librería para parsear y enmascarar datos sensibles de logs de la pasarela Placetopay.",
+  "author": "Iván Andrés López <ialopez11012@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/p2p-log-parser.cjs",
+  "module": "./dist/p2p-log-parser.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/p2p-log-parser.js",
+      "require": "./dist/p2p-log-parser.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && vite build",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.5.3",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3",
+    "vite": "^8.0.2",
+    "vite-plugin-dts": "^4.5.4"
+  },
+  "keywords": [
+    "placetopay",
+    "log",
+    "parser",
+    "masking"
+  ]
+}
