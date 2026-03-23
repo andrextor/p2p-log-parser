@@ -22,8 +22,10 @@ describe('AWS CSV CloudWatch Parsing (End to End)', () => {
     if (!result.groupedBySession) return;
     
     // 64495535 block should have the gateway errors and HTTP Res handled properly
-    const sessionBlock = result.groupedBySession['64495535'];
-    expect(sessionBlock).toBeDefined();
+    const sessionTimeBlocks = result.groupedBySession['64495535'];
+    expect(sessionTimeBlocks).toBeDefined();
+    
+    const sessionBlock = Object.values(sessionTimeBlocks).flat();
     expect(sessionBlock.length).toBe(3);
 
     // Verifying deeper mapper functionality inside the e2e test

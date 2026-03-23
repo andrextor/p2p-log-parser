@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { P2PParserEngine } from './src/engine';
+import { P2PParserEngine } from '@/engine';
 
 const csv = fs.readFileSync('/tmp/sample.csv', 'utf-8');
 const engine = new P2PParserEngine();
@@ -16,11 +16,13 @@ if (result.metadata) {
 
 console.log(`\nGrouped Events:`);
 if (result.groupedBySession) {
-  for (const [sessionId, events] of Object.entries(result.groupedBySession)) {
+  for (const [sessionId, timeBlocks] of Object.entries(result.groupedBySession)) {
     console.log(`\n--- Session: ${sessionId} ---`);
-    events.forEach(e => {
-      const dt = (e.details as any);
-      console.log(`[${e.timestamp}] ${e.category} | ${e.message} | Src: ${dt.source} | Sub: ${dt.subType}`);
-    });
+    for (const [_timeKey, events] of Object.entries(timeBlocks)) {
+      events.forEach(e => {
+        const dt = (e.details as any);
+        console.log(`[${e.timestamp}] ${e.category} | ${e.message} | Src: ${dt.source} | Sub: ${dt.subType}`);
+      });
+    }
   }
 }

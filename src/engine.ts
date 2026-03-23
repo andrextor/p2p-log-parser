@@ -22,7 +22,7 @@ export interface ParseMetadata {
 
 export interface ParseResult {
   events: LogEvent[];
-  groupedBySession?: Record<string, LogEvent[]>;
+  groupedBySession?: Record<string, Record<string, LogEvent[]>>;
   metadata?: ParseMetadata;
   errors: { line: number; reason: string; content: string }[];
 }
@@ -123,7 +123,7 @@ export class P2PParserEngine {
     );
 
     // 4. Session grouping and metadata
-    const groupedBySession: Record<string, LogEvent[]> = {};
+    const groupedBySession: Record<string, Record<string, LogEvent[]>> = {};
     const sessionIds = new Set<string>();
 
     for (const event of sortedEvents) {
@@ -136,10 +136,19 @@ export class P2PParserEngine {
         sessionId = String(event.details.sessionId);
       }
 
+      const eventDate = new Date(event.timestamp);
+      // Group by minute: YYYY-MM-DD HH:mm
+      let executionTime = isNaN(eventDate.getTime()) 
+        ? "unknown_time" 
+        : eventDate.toISOString().substring(0, 16).replace("T", " ");
+
       if (!groupedBySession[sessionId]) {
-        groupedBySession[sessionId] = [];
+        groupedBySession[sessionId] = {};
       }
-      groupedBySession[sessionId].push(event);
+      if (!groupedBySession[sessionId][executionTime]) {
+        groupedBySession[sessionId][executionTime] = [];
+      }
+      groupedBySession[sessionId][executionTime].push(event);
 
       if (sessionId !== "unknown") {
         sessionIds.add(sessionId);

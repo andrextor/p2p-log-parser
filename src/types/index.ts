@@ -49,6 +49,7 @@ export interface BaseDetails {
   statusCode?: number | string | null;
   payload?: unknown;
   source?: string | null;
+  title?: string;
 }
 
 export interface CheckoutDetails extends BaseDetails {

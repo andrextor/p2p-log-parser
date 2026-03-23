@@ -29,12 +29,15 @@ describe('P2PParserEngine Grouping Logic', () => {
     if (!result.groupedBySession) return;
     
     // Check isolation
-    expect(result.groupedBySession['111'].length).toBe(2);
-    expect(result.groupedBySession['222'].length).toBe(1);
+    const session111 = Object.values(result.groupedBySession['111']).flat();
+    expect(session111.length).toBe(2);
+    
+    const session222 = Object.values(result.groupedBySession['222']).flat();
+    expect(session222.length).toBe(1);
 
     // Check chronological sorting within the session block
-    expect(result.groupedBySession['111'][0].timestamp).toBe('2025-12-28T22:14:01.362-05');
-    expect(result.groupedBySession['111'][1].timestamp).toBe('2025-12-28T22:14:02.116-05');
+    expect(session111[0].timestamp).toBe('2025-12-28T22:14:01.362-05');
+    expect(session111[1].timestamp).toBe('2025-12-28T22:14:02.116-05');
   });
 
   it('should run gracefully and skip metadata if only one session exists', () => {
@@ -49,6 +52,7 @@ describe('P2PParserEngine Grouping Logic', () => {
     
     expect(result.groupedBySession).toBeDefined();
     if (!result.groupedBySession) return;
-    expect(result.groupedBySession['333'].length).toBe(1);
+    const session333 = Object.values(result.groupedBySession['333']).flat();
+    expect(session333.length).toBe(1);
   });
 });
