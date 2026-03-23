@@ -18,6 +18,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@checkout': resolve(__dirname, 'src/checkout'),
+      '@rest': resolve(__dirname, 'src/rest'),
+      '@common': resolve(__dirname, 'src/common'),
+      '@types': resolve(__dirname, 'src/types'),
+      '@utils': resolve(__dirname, 'src/utils'),
+      '@test': resolve(__dirname, 'test'),
     },
   },
 });
