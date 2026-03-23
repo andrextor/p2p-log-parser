@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-23
+
+### Changed
+- Automated NPM library deployment with GitHub Actions (`release-main.yml`).
+- Upgraded CI configuration to resolve GitHub Actions Node 24 deprecation warnings.
+
 ## [1.0.0] - 2026-03-23
 
 ### Added
