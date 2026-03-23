@@ -8,6 +8,7 @@ import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
 import { CheckoutAwsCsvParser } from "./checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutInsightsParser } from "./checkout/strategies/CheckoutInsightsParser";
 import { CheckoutLocalParser } from "./checkout/strategies/CheckoutLocalParser";
+import { RestMapper } from "./rest/mappers/RestMapper";
 import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
 import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
@@ -28,6 +29,7 @@ export interface ParseResult {
 
 export class P2PParserEngine {
   private checkoutMapper = new CheckoutMapper();
+  private restMapper = new RestMapper();
   private genericMapper = new GenericMapper();
 
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
@@ -42,7 +44,7 @@ export class P2PParserEngine {
 
   private mappers: Record<AppType, LogMapper> = {
     [AppTypes.CHECKOUT]: this.checkoutMapper,
-    [AppTypes.REST]: this.genericMapper,
+    [AppTypes.REST]: this.restMapper,
     [AppTypes.MICROSITES]: this.genericMapper,
   };
 
@@ -98,6 +100,8 @@ export class P2PParserEngine {
               mapper = preferredMapper;
             } else if (this.checkoutMapper.canHandle(inferredData)) {
               mapper = this.checkoutMapper;
+            } else if (this.restMapper.canHandle(inferredData)) {
+              mapper = this.restMapper;
             }
 
             events.push(mapper.map(inferredData, unit, index));
