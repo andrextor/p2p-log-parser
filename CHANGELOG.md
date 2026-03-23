@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-03-23
+
+### Changed
+- Renamed the NPM package scope to `@andrextor_ia11012/p2p-log-parser` to fix publishing permissions.
+
 ## [1.0.1] - 2026-03-23
 
 ### Changed
