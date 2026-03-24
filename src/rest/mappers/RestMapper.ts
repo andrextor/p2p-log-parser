@@ -8,7 +8,10 @@ import {
   type RestDetails,
 } from "@/types";
 import { buildEventId } from "@/utils/mapper";
-import { REST_ACTION_MAP } from "../constants/RestActions";
+import {
+  DEFAULT_REST_ACTION_MAP,
+  type RestActionDetail,
+} from "../constants/RestActions";
 
 interface RestInternalException {
   message?: string;
@@ -46,6 +49,14 @@ interface RestInternalPayload {
 }
 
 export class RestMapper implements LogMapper {
+  private readonly actionMap: Record<string, RestActionDetail>;
+
+  constructor(
+    actionMap: Record<string, RestActionDetail> = DEFAULT_REST_ACTION_MAP,
+  ) {
+    this.actionMap = actionMap;
+  }
+
   /**
    * Identifies if the log belongs to the REST/SDK flow or is an internal Laravel trace.
    */
@@ -147,7 +158,7 @@ export class RestMapper implements LogMapper {
         ? "HTTP_REQ_OUT"
         : "HTTP_RES";
 
-      const knownAction = REST_ACTION_MAP[operation];
+      const knownAction = this.actionMap[operation];
       displayMessage = knownAction ? knownAction.message : operation;
 
       // Enriched title for the Timeline

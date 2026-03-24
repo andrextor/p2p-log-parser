@@ -19,9 +19,7 @@ A strict, high-performance, Domain-Driven Node.js backend library for parsing, m
 You can install this internal dependency into your project using NPM:
 
 ```bash
-npm install @p2p/log-parser
-# OR
-npm i github:placetopay/log-parser
+npm i @andrextor_ia11012/p2p-log-parser
 ```
 
 ## Basic Usage
@@ -50,6 +48,29 @@ console.log(result.groupedBySession);
 // Additional metadata for multi-session datasets
 console.log(result.metadata);
 ```
+
+### Custom Action Maps
+
+You can extend or override the built-in action maps by passing a `P2PParserEngineConfig`:
+
+```typescript
+import { P2PParserEngine } from '@p2p/log-parser';
+import type { CheckoutActionDetail, RestActionDetail } from '@p2p/log-parser';
+
+const engine = new P2PParserEngine({
+  customCheckoutActions: {
+    // Override an existing action
+    entry: { message: 'My Custom Entry', category: 'BROWSER_LOAD', source: 'FRONTEND' },
+    // Add a new action
+    myFlow: { message: 'Integrator Flow', category: 'HTTP_REQ_IN', source: 'BACKEND' },
+  },
+  customRestActions: {
+    refund: { message: 'Refund Operation', category: 'PAYMENT', source: 'BACKEND' },
+  },
+});
+```
+
+Custom actions are **merged** with the defaults — existing keys are overridden, new keys are added.
 
 ### Supported Apps
 The library splits strategies cleanly over 3 domain blocks via `AppTypes`:

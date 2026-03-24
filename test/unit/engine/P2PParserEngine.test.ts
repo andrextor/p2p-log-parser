@@ -55,4 +55,38 @@ describe("P2PParserEngine Grouping Logic", () => {
     const session333 = Object.values(result.groupedBySession["333"]).flat();
     expect(session333.length).toBe(1);
   });
+
+  it("should apply custom checkout actions from engine config", () => {
+    const engine = new P2PParserEngine({
+      customCheckoutActions: {
+        "checkout.session.created": {
+          message: "Custom Session Init",
+          category: "HTTP_REQ_IN",
+          source: "BACKEND",
+        },
+      },
+    });
+
+    const mockLog = `"Time","__log__grafana_internal__","__logstream__grafana_internal__","@message","session_id","Value"
+2025-12-28 22:14:01,x,y,"{""message"":""placetopay_event"",""context"":{""type"":""checkout.session.created"",""data"":{""session_id"":444}},""level"":200,""datetime"":""2025-12-28T22:14:01.362-05""}",444,view`;
+
+    const result = engine.parse(mockLog, AppTypes.CHECKOUT);
+
+    expect(result.events.length).toBe(1);
+    expect(result.events[0].message).toBe("Custom Session Init");
+  });
+
+  it("should preserve default actions when no custom config is provided", () => {
+    const engine = new P2PParserEngine();
+
+    const mockLog = `"Time","__log__grafana_internal__","__logstream__grafana_internal__","@message","session_id","Value"
+2025-12-28 22:14:01,x,y,"{""message"":""placetopay_event"",""context"":{""type"":""checkout.session.created"",""data"":{""session_id"":555}},""level"":200,""datetime"":""2025-12-28T22:14:01.362-05""}",555,view`;
+
+    const result = engine.parse(mockLog, AppTypes.CHECKOUT);
+
+    expect(result.events.length).toBe(1);
+    expect(result.events[0].message).toBe(
+      "Session creation request: Flow initialization",
+    );
+  });
 });

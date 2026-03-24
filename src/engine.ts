@@ -4,6 +4,8 @@ import {
   type LogEvent,
   type NormalizedLogData,
 } from "@/types";
+import type { CheckoutActionDetail } from "./checkout/constants/CheckoutActions";
+import { mergeCheckoutActions } from "./checkout/constants/CheckoutActions";
 import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
 import { CheckoutAwsCsvParser } from "./checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutInsightsParser } from "./checkout/strategies/CheckoutInsightsParser";
@@ -11,8 +13,15 @@ import { CheckoutLocalParser } from "./checkout/strategies/CheckoutLocalParser";
 import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
 import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
+import type { RestActionDetail } from "./rest/constants/RestActions";
+import { mergeRestActions } from "./rest/constants/RestActions";
 import { RestMapper } from "./rest/mappers/RestMapper";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
+
+export interface P2PParserEngineConfig {
+  customCheckoutActions?: Record<string, CheckoutActionDetail>;
+  customRestActions?: Record<string, RestActionDetail>;
+}
 
 export interface ParseMetadata {
   totalSessions: number;
@@ -28,8 +37,8 @@ export interface ParseResult {
 }
 
 export class P2PParserEngine {
-  private checkoutMapper = new CheckoutMapper();
-  private restMapper = new RestMapper();
+  private checkoutMapper: CheckoutMapper;
+  private restMapper: RestMapper;
   private genericMapper = new GenericMapper();
 
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
@@ -42,11 +51,26 @@ export class P2PParserEngine {
     [AppTypes.MICROSITES]: [new CheckoutLocalParser()],
   };
 
-  private mappers: Record<AppType, LogMapper> = {
-    [AppTypes.CHECKOUT]: this.checkoutMapper,
-    [AppTypes.REST]: this.restMapper,
-    [AppTypes.MICROSITES]: this.genericMapper,
-  };
+  private mappers: Record<AppType, LogMapper>;
+
+  constructor(config?: P2PParserEngineConfig) {
+    const checkoutActions = config?.customCheckoutActions
+      ? mergeCheckoutActions(config.customCheckoutActions)
+      : undefined;
+
+    const restActions = config?.customRestActions
+      ? mergeRestActions(config.customRestActions)
+      : undefined;
+
+    this.checkoutMapper = new CheckoutMapper(checkoutActions);
+    this.restMapper = new RestMapper(restActions);
+
+    this.mappers = {
+      [AppTypes.CHECKOUT]: this.checkoutMapper,
+      [AppTypes.REST]: this.restMapper,
+      [AppTypes.MICROSITES]: this.genericMapper,
+    };
+  }
 
   /**
    * Orchestrates the parsing of a raw multi-line string.
