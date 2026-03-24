@@ -1,3 +1,4 @@
+import { DEFAULT_REST_ACTION_MAP } from "@/rest/constants/RestActions";
 import { RestMapper } from "@/rest/mappers/RestMapper";
 import type { LogCategory, NormalizedLogData, RestDetails } from "@/types";
 import { describe, expect, it } from "vitest";
@@ -73,5 +74,50 @@ describe("RestMapper Unit Tests", () => {
     expect(result.category).toBe("ERROR" as LogCategory);
     expect(result.message).toContain("Critical Failure [API_REST]");
     expect(details.statusCode).toBe("503");
+  });
+
+  it("should use overridden action when custom actionMap is provided", () => {
+    const customMapper = new RestMapper({
+      ...DEFAULT_REST_ACTION_MAP,
+      authorize: {
+        message: "Custom Authorization Flow",
+        category: "PAYMENT",
+        source: "BACKEND",
+      },
+    });
+
+    const data: NormalizedLogData = {
+      timestamp: "2025-12-28",
+      level: "INFO",
+      message: '{"operation":"authorize","action":"request"}',
+      context: {},
+    };
+
+    const result = customMapper.map(data, "", 1);
+
+    expect(result.message).toContain("Custom Authorization Flow");
+  });
+
+  it("should resolve a brand-new custom REST action key", () => {
+    const customMapper = new RestMapper({
+      ...DEFAULT_REST_ACTION_MAP,
+      refund: {
+        message: "Refund Operation",
+        category: "PAYMENT",
+        source: "BACKEND",
+      },
+    });
+
+    const data: NormalizedLogData = {
+      timestamp: "2025-12-28",
+      level: "INFO",
+      message: '{"operation":"refund","action":"request"}',
+      context: {},
+    };
+
+    const result = customMapper.map(data, "", 2);
+
+    expect(result.message).toContain("Refund Operation");
+    expect(result.category).toBe("HTTP_REQ_OUT");
   });
 });

@@ -6,7 +6,10 @@ export interface CheckoutActionDetail {
   source: "FRONTEND" | "BACKEND";
 }
 
-export const CheckoutActionMap: Record<string, CheckoutActionDetail> = {
+export const DEFAULT_CHECKOUT_ACTION_MAP: Record<
+  string,
+  CheckoutActionDetail
+> = {
   // --- SPA / Browser Flows ---
   entry: {
     message: "Browser interface visualization (SPA)",
@@ -90,3 +93,9 @@ export const CheckoutActionMap: Record<string, CheckoutActionDetail> = {
     source: "BACKEND",
   },
 };
+
+export function mergeCheckoutActions(
+  custom: Record<string, CheckoutActionDetail>,
+): Record<string, CheckoutActionDetail> {
+  return { ...DEFAULT_CHECKOUT_ACTION_MAP, ...custom };
+}

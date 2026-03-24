@@ -6,7 +6,7 @@ export interface RestActionDetail {
   source: "BACKEND";
 }
 
-export const REST_ACTION_MAP: Record<string, RestActionDetail> = {
+export const DEFAULT_REST_ACTION_MAP: Record<string, RestActionDetail> = {
   // --- SDK / API Operations ---
   creditType: {
     message: "Bin and Installment Query",
@@ -45,3 +45,9 @@ export const REST_ACTION_MAP: Record<string, RestActionDetail> = {
     source: "BACKEND",
   },
 };
+
+export function mergeRestActions(
+  custom: Record<string, RestActionDetail>,
+): Record<string, RestActionDetail> {
+  return { ...DEFAULT_REST_ACTION_MAP, ...custom };
+}

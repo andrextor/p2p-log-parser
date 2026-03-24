@@ -12,9 +12,20 @@ import {
   normalizePath,
 } from "@/utils/mapper";
 import type { LogMapper } from "../../common/mappers/BaseMapper";
-import { CheckoutActionMap } from "../constants/CheckoutActions";
+import {
+  type CheckoutActionDetail,
+  DEFAULT_CHECKOUT_ACTION_MAP,
+} from "../constants/CheckoutActions";
 
 export class CheckoutMapper implements LogMapper {
+  private readonly actionMap: Record<string, CheckoutActionDetail>;
+
+  constructor(
+    actionMap: Record<string, CheckoutActionDetail> = DEFAULT_CHECKOUT_ACTION_MAP,
+  ) {
+    this.actionMap = actionMap;
+  }
+
   canHandle(data: NormalizedLogData): boolean {
     if (!data) return false;
     const ctx = (data.context ?? {}) as Record<string, unknown>;
@@ -56,7 +67,7 @@ export class CheckoutMapper implements LogMapper {
     const msgRaw = data.message ?? "";
 
     const actionKey = subType === "checkout.session.created" ? subType : action;
-    const knownAction = actionKey ? CheckoutActionMap[actionKey] : null;
+    const knownAction = actionKey ? this.actionMap[actionKey] : null;
 
     let displayMessage = msgRaw;
     let category: LogCategory = "BACKEND_LOG";
