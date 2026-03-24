@@ -107,4 +107,41 @@ describe("CheckoutMapper", () => {
     expect(result.message).toBe("Integrator Custom Flow");
     expect(result.category).toBe("HTTP_REQ_IN");
   });
+
+  it("should format opening 3DS dynamically based on openInLightbox flag", () => {
+    const logDataFalse: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Opening 3DS lightbox",
+      context: { openInLightbox: false },
+    };
+
+    const logDataTrue: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Opening 3DS lightbox",
+      context: { openInLightbox: true },
+    };
+
+    const resultFalse = mapper.map(logDataFalse, "", 1);
+    const resultTrue = mapper.map(logDataTrue, "", 2);
+
+    expect(resultFalse.message).toBe("Opening 3DS (Redirection)");
+    expect(resultTrue.message).toBe("Opening 3DS (Lightbox)");
+  });
+
+  it("should return a null endpoint for validation errors with no URL", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "error validation",
+      context: {},
+    };
+
+    const result = mapper.map(logData, "", 1);
+    const details = result.details as any;
+
+    expect(result.message).toBe("Validation Error (Request)");
+    expect(details.endpoint).toBeNull();
+  });
 });

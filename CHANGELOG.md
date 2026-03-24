@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-03-23
+
+### Changed
+- Improved `CheckoutMapper` message correctly displaying whether the 3DS process started in a `Lightbox` or `Redirection` flow via context payload.
+- `Validation Layer` fallbacks are now resolved to `null` to avoid breaking frontend URL generation endpoints.
+
 ## [1.0.4] - 2026-03-23
 
 ### Added
