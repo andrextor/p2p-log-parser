@@ -19,7 +19,8 @@ describe("AWS CSV CloudWatch Parsing (End to End)", () => {
     expect(result.errors).toHaveLength(0);
 
     expect(result.metadata).toBeDefined();
-    expect(result.metadata?.totalSessions).toBe(3);
+    const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
+    expect(metadata.totalSessions).toBe(3);
 
     expect(result.groupedBySession).toBeDefined();
     if (!result.groupedBySession) return;

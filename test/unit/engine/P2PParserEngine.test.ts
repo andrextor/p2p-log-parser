@@ -21,9 +21,18 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(result.events.length).toBe(3);
 
     expect(result.metadata).toBeDefined();
-    expect(result.metadata?.totalSessions).toBe(2);
-    expect(result.metadata?.sessionIds).toContain("111");
-    expect(result.metadata?.sessionIds).toContain("222");
+    const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
+    expect(metadata.totalSessions).toBe(2);
+    
+    // sessionIds is no longer string[], it's an array of objects `sessions`.
+    const sessionIds = metadata.sessions.map((s) => s.sessionId);
+    expect(sessionIds).toContain("111");
+    expect(sessionIds).toContain("222");
+
+    // Let's assert the extracted data is mostly correct.
+    const s111 = metadata.sessions.find(s => s.sessionId === "111");
+    expect(s111?.sessionType).toBe("PAYMENT");
+    expect(s111?.finalState).toBe("UNDEFINED");
 
     expect(result.groupedBySession).toBeDefined();
     if (!result.groupedBySession) return;
@@ -88,5 +97,83 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(result.events[0].message).toBe(
       "Session creation request: Flow initialization",
     );
+  });
+
+  it("should extract REST metadata correctly", () => {
+    const engine = new P2PParserEngine();
+    const mockRestLog = JSON.stringify([
+      {
+        message: '{"provider":"PLACETOPAY","operation":"QUERY_TRANSACTION"}',
+        level: "info",
+        messageId: "req-123",
+        timestamp: "2025-12-28T22:14:01.000Z",
+      },
+    ]);
+
+    const result = engine.parse(mockRestLog, AppTypes.REST);
+
+    expect(result.events.length).toBe(1);
+    expect(result.metadata).toBeDefined();
+    const metadata = result.metadata as import("@/engine").RestParseMetadata;
+    expect(metadata.totalOperations).toBe(1);
+    expect(metadata.operations).toContain("QUERY_TRANSACTION");
+    expect(metadata.providers).toContain("PLACETOPAY");
+  });
+
+  it("should extract session reference from request body", () => {
+    const engine = new P2PParserEngine();
+    const mockLog = JSON.stringify([
+      {
+        message: "placetopay_event",
+        context: {
+          session_id: 333,
+          request: {
+            body: {
+              payment: {
+                reference: "REF-123",
+                subscribe: false,
+              },
+            },
+          },
+        },
+        level: 200,
+        timestamp: "2025-12-28T22:15:00-05",
+      },
+      // Need a second session to trigger metadata
+      {
+        message: "placetopay_event",
+        context: {
+          session_id: 444,
+          request: {
+            body: {
+              subscription: {
+                reference: "SUB-456",
+              },
+            },
+          },
+        },
+        level: 200,
+        timestamp: "2025-12-28T22:15:01-05",
+      },
+    ]);
+
+    const result = engine.parse(mockLog, AppTypes.CHECKOUT);
+    const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
+
+    const s333 = metadata.sessions.find((s) => s.sessionId === "333");
+    expect(s333?.reference).toBe("REF-123");
+
+    const s444 = metadata.sessions.find((s) => s.sessionId === "444");
+    expect(s444?.reference).toBe("SUB-456");
+  });
+
+  it("should return supported formats metadata for discovery", () => {
+    const engine = new P2PParserEngine();
+    const formats = engine.getSupportedFormats();
+
+    expect(formats[AppTypes.CHECKOUT]).toBeDefined();
+    expect(formats[AppTypes.CHECKOUT].some(f => f.name === "Checkout New Relic Parser")).toBe(true);
+    expect(formats[AppTypes.REST]).toBeDefined();
+    expect(formats[AppTypes.REST][0].name).toBe("REST New Relic Parser");
   });
 });

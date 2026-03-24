@@ -1,5 +1,8 @@
 import type { NormalizedLogData } from "@/types";
-import type { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
+import type {
+  LogExtractionStrategy,
+  StrategyMetadata,
+} from "../../common/strategies/LogExtractionStrategy";
 
 export class CheckoutInsightsParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
@@ -27,5 +30,13 @@ export class CheckoutInsightsParser implements LogExtractionStrategy {
     } catch {
       return null;
     }
+  }
+
+  getMetadata(): StrategyMetadata {
+    return {
+      name: "Checkout Insights Parser",
+      description: "Parses logs from CloudWatch Insights format.",
+      detectionRule: "/^\\s*(\\d+)\\s+([^\\s]+)\\s+({.*)$/",
+    };
   }
 }

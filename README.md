@@ -9,8 +9,9 @@ A strict, high-performance, Domain-Driven Node.js backend library for parsing, m
 - **Auto Data Masking:** Redacts sensitive payment data such as PAN, CVV, and credit card expiration dates automatically from logs.
 - **Intelligent Parsers:** Seamlessly identifies and parses structural log dumps from: 
   - AWS CloudWatch CSVs (Checkout Insights).
-  - New Relic JSON arrays.
+  - New Relic JSON arrays (REST and Checkout).
   - Laravel generic local `laravel.log` lines.
+- **Parser Discovery:** Programmatically discover supported formats per app type with their specific detection rules.
 - **Hierarchical Log Grouping:** Automatically merges distributed multi-session request traces into structured Session ID -> Execution Time dimensions.
 - **Domain Mappers:** Built with modular sub-mappers specific to Placetopay domains (Core API REST, Checkout, and Microsites).
 
@@ -45,8 +46,25 @@ console.log(result.events);
 // Multi-dimensionally grouped logs: Record<SessionId, Record<ExecutionTime, LogEvent[]>>
 console.log(result.groupedBySession);
 
-// Additional metadata for multi-session datasets
-console.log(result.metadata);
+// Additional domain-aware metadata for multi-session datasets
+// v1.1.0+: result.metadata is a discriminated union of Checkout, Rest, or Microsites metadata.
+if (result.metadata?.appType === AppTypes.CHECKOUT) {
+  // Checkout metadata contains detailed session objects
+  console.log(result.metadata.sessions[0].sessionType); // e.g. 'PAYMENT'
+  console.log(result.metadata.sessions[0].reference);   // e.g. 'REF-12345'
+}
+```
+
+### Parser Discovery
+
+You can discover supported log formats programmatically:
+
+```typescript
+const formats = engine.getSupportedFormats();
+// {
+//   checkout: [{ name: 'Checkout New Relic Parser', detectionRule: '...', ... }, ...],
+//   rest: [{ name: 'REST New Relic Parser', ... }]
+// }
 ```
 
 ### Custom Action Maps

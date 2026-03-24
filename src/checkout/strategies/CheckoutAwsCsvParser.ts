@@ -1,5 +1,8 @@
 import type { NormalizedLogData } from "@/types";
-import type { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
+import type {
+  LogExtractionStrategy,
+  StrategyMetadata,
+} from "../../common/strategies/LogExtractionStrategy";
 
 export class CheckoutAwsCsvParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
@@ -53,5 +56,14 @@ export class CheckoutAwsCsvParser implements LogExtractionStrategy {
     } catch {
       return null;
     }
+  }
+
+  getMetadata(): StrategyMetadata {
+    return {
+      name: "Checkout AWS CSV Parser",
+      description: "Parses logs from AWS CloudWatch CSV exports.",
+      detectionRule:
+        "Starts with date (YYYY-MM-DD) and contains JSON marker ',\"{'.",
+    };
   }
 }

@@ -4,7 +4,7 @@ import type {
   StrategyMetadata,
 } from "../../common/strategies/LogExtractionStrategy";
 
-export class RestNewRelicParser implements LogExtractionStrategy {
+export class CheckoutNewRelicParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
     const trimmed = line.trim();
 
@@ -20,7 +20,7 @@ export class RestNewRelicParser implements LogExtractionStrategy {
       const level = String(
         parsed.level || parsed.level_name || "INFO",
       ).toUpperCase();
-      const message = String(parsed.message || "REST API Log");
+      const message = String(parsed.message || "Checkout API Log");
       const context = (parsed.context || parsed) as Record<string, unknown>;
 
       return {
@@ -37,8 +37,8 @@ export class RestNewRelicParser implements LogExtractionStrategy {
 
   getMetadata(): StrategyMetadata {
     return {
-      name: "REST New Relic Parser",
-      description: "Parses structured JSON logs from New Relic.",
+      name: "Checkout New Relic Parser",
+      description: "Parses structured JSON logs for the checkout domain.",
       detectionRule: "Valid JSON object starting with '{' and ending with '}'.",
     };
   }
