@@ -3,9 +3,9 @@ import {
   type CheckoutParseMetadata,
 } from "@/checkout/metadata/CheckoutMetadataExtractor";
 import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser";
+import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
 import { CheckoutInsightsParser } from "@/checkout/strategies/CheckoutInsightsParser";
 import { CheckoutLocalParser } from "@/checkout/strategies/CheckoutLocalParser";
-import { CheckoutNewRelicParser } from "@/checkout/strategies/CheckoutNewRelicParser";
 import type {
   DomainMetadata,
   MetadataExtractor,
@@ -67,7 +67,7 @@ export class P2PParserEngine {
 
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
     [AppTypes.CHECKOUT]: [
-      new CheckoutNewRelicParser(),
+      new CheckoutGrafanaCsvParser(),
       new CheckoutInsightsParser(),
       new CheckoutAwsCsvParser(),
       new CheckoutLocalParser(),

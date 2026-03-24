@@ -37,7 +37,7 @@ export class RestNewRelicParser implements LogExtractionStrategy {
 
   getMetadata(): StrategyMetadata {
     return {
-      name: "REST New Relic Parser",
+      name: "New Relic Parser",
       description: "Parses structured JSON logs from New Relic.",
       detectionRule: "Valid JSON object starting with '{' and ending with '}'.",
     };

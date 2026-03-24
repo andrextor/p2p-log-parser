@@ -70,7 +70,7 @@ export class CheckoutLocalParser implements LogExtractionStrategy {
 
   getMetadata(): StrategyMetadata {
     return {
-      name: "Checkout Local Parser",
+      name: "Local Parser",
       description: "Parses standard Laravel production logs.",
       detectionRule: "/^\\[(.*?)\\]\\s+\\w+\\.(\\w+):\\s+(.*)$/",
     };

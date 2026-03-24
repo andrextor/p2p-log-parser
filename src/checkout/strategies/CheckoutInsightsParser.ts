@@ -34,7 +34,7 @@ export class CheckoutInsightsParser implements LogExtractionStrategy {
 
   getMetadata(): StrategyMetadata {
     return {
-      name: "Checkout Insights Parser",
+      name: "AWS Insights Parser",
       description: "Parses logs from CloudWatch Insights format.",
       detectionRule: "/^\\s*(\\d+)\\s+([^\\s]+)\\s+({.*)$/",
     };

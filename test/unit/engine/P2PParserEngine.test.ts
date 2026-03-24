@@ -23,7 +23,7 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(result.metadata).toBeDefined();
     const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
     expect(metadata.totalSessions).toBe(2);
-    
+
     // sessionIds is no longer string[], it's an array of objects `sessions`.
     const sessionIds = metadata.sessions.map((s) => s.sessionId);
     expect(sessionIds).toContain("111");
@@ -122,40 +122,10 @@ describe("P2PParserEngine Grouping Logic", () => {
 
   it("should extract session reference from request body", () => {
     const engine = new P2PParserEngine();
-    const mockLog = JSON.stringify([
-      {
-        message: "placetopay_event",
-        context: {
-          session_id: 333,
-          request: {
-            body: {
-              payment: {
-                reference: "REF-123",
-                subscribe: false,
-              },
-            },
-          },
-        },
-        level: 200,
-        timestamp: "2025-12-28T22:15:00-05",
-      },
-      // Need a second session to trigger metadata
-      {
-        message: "placetopay_event",
-        context: {
-          session_id: 444,
-          request: {
-            body: {
-              subscription: {
-                reference: "SUB-456",
-              },
-            },
-          },
-        },
-        level: 200,
-        timestamp: "2025-12-28T22:15:01-05",
-      },
-    ]);
+    const mockLog = [
+      `2025-12-28 22:15:00,x,y,"{""message"":""placetopay_event"",""context"":{""session_id"":333,""request"":{""body"":{""payment"":{""reference"":""REF-123"",""subscribe"":false}}}},""level"":200,""timestamp"":""2025-12-28T22:15:00-05""}",333,view`,
+      `2025-12-28 22:15:01,x,y,"{""message"":""placetopay_event"",""context"":{""session_id"":444,""request"":{""body"":{""subscription"":{""reference"":""SUB-456""}}}},""level"":200,""timestamp"":""2025-12-28T22:15:01-05""}",444,view`,
+    ].join("\n");
 
     const result = engine.parse(mockLog, AppTypes.CHECKOUT);
     const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
@@ -172,8 +142,8 @@ describe("P2PParserEngine Grouping Logic", () => {
     const formats = engine.getSupportedFormats();
 
     expect(formats[AppTypes.CHECKOUT]).toBeDefined();
-    expect(formats[AppTypes.CHECKOUT].some(f => f.name === "Checkout New Relic Parser")).toBe(true);
+    expect(formats[AppTypes.CHECKOUT].some(f => f.name === "Grafana CSV Parser")).toBe(true);
     expect(formats[AppTypes.REST]).toBeDefined();
-    expect(formats[AppTypes.REST][0].name).toBe("REST New Relic Parser");
+    expect(formats[AppTypes.REST][0].name).toBe("New Relic Parser");
   });
 });

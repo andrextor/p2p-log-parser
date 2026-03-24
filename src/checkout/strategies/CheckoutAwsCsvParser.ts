@@ -60,7 +60,7 @@ export class CheckoutAwsCsvParser implements LogExtractionStrategy {
 
   getMetadata(): StrategyMetadata {
     return {
-      name: "Checkout AWS CSV Parser",
+      name: "AWS CSV Parser",
       description: "Parses logs from AWS CloudWatch CSV exports.",
       detectionRule:
         "Starts with date (YYYY-MM-DD) and contains JSON marker ',\"{'.",
