@@ -50,6 +50,7 @@ export interface BaseDetails {
   payload?: unknown;
   source?: string | null;
   title?: string;
+  rawTitle?: string;
 }
 
 export interface CheckoutDetails extends BaseDetails {

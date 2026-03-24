@@ -235,6 +235,7 @@ export class CheckoutMapper implements LogMapper {
         !msgRaw.includes("[GW_LIB]")
           ? msgRaw
           : undefined,
+      rawTitle: msgRaw || undefined,
     };
 
     return {
