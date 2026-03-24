@@ -1,5 +1,8 @@
 import type { NormalizedLogData } from "@/types";
-import type { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
+import type {
+  LogExtractionStrategy,
+  StrategyMetadata,
+} from "../../common/strategies/LogExtractionStrategy";
 
 export class CheckoutLocalParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
@@ -62,6 +65,14 @@ export class CheckoutLocalParser implements LogExtractionStrategy {
       message: message || "Local Log",
       context,
       sourceType: "LARAVEL_LOCAL",
+    };
+  }
+
+  getMetadata(): StrategyMetadata {
+    return {
+      name: "Local Parser",
+      description: "Parses standard Laravel production logs.",
+      detectionRule: "/^\\[(.*?)\\]\\s+\\w+\\.(\\w+):\\s+(.*)$/",
     };
   }
 }

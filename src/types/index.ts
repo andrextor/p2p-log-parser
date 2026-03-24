@@ -21,7 +21,12 @@ export interface NormalizedLogData {
   level: string;
   message: string;
   context: Record<string, unknown>;
-  sourceType?: "AWS_CSV" | "LARAVEL_LOCAL" | "NEW_RELIC_JSON" | "UNKNOWN";
+  sourceType?:
+    | "AWS_CSV"
+    | "LARAVEL_LOCAL"
+    | "NEW_RELIC_JSON"
+    | "GRAFANA_CSV"
+    | "UNKNOWN";
 }
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
@@ -50,6 +55,7 @@ export interface BaseDetails {
   payload?: unknown;
   source?: string | null;
   title?: string;
+  rawTitle?: string;
 }
 
 export interface CheckoutDetails extends BaseDetails {

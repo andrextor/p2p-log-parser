@@ -1,4 +1,25 @@
 import {
+  CheckoutMetadataExtractor,
+  type CheckoutParseMetadata,
+} from "@/checkout/metadata/CheckoutMetadataExtractor";
+import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser";
+import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
+import { CheckoutInsightsParser } from "@/checkout/strategies/CheckoutInsightsParser";
+import { CheckoutLocalParser } from "@/checkout/strategies/CheckoutLocalParser";
+import type {
+  DomainMetadata,
+  MetadataExtractor,
+} from "@/common/metadata/MetadataExtractor";
+import type { StrategyMetadata } from "@/common/strategies/LogExtractionStrategy";
+import {
+  MicrositesMetadataExtractor,
+  type MicrositesParseMetadata,
+} from "@/microsites/metadata/MicrositesMetadataExtractor";
+import {
+  RestMetadataExtractor,
+  type RestParseMetadata,
+} from "@/rest/metadata/RestMetadataExtractor";
+import {
   type AppType,
   AppTypes,
   type LogEvent,
@@ -7,9 +28,6 @@ import {
 import type { CheckoutActionDetail } from "./checkout/constants/CheckoutActions";
 import { mergeCheckoutActions } from "./checkout/constants/CheckoutActions";
 import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
-import { CheckoutAwsCsvParser } from "./checkout/strategies/CheckoutAwsCsvParser";
-import { CheckoutInsightsParser } from "./checkout/strategies/CheckoutInsightsParser";
-import { CheckoutLocalParser } from "./checkout/strategies/CheckoutLocalParser";
 import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
 import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
@@ -23,11 +41,17 @@ export interface P2PParserEngineConfig {
   customRestActions?: Record<string, RestActionDetail>;
 }
 
-export interface ParseMetadata {
-  totalSessions: number;
-  sessionIds: string[];
-  totalEvents: number;
-}
+export type ParseMetadata =
+  | CheckoutParseMetadata
+  | RestParseMetadata
+  | MicrositesParseMetadata;
+
+export type {
+  DomainMetadata,
+  CheckoutParseMetadata,
+  RestParseMetadata,
+  MicrositesParseMetadata,
+};
 
 export interface ParseResult {
   events: LogEvent[];
@@ -43,6 +67,7 @@ export class P2PParserEngine {
 
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
     [AppTypes.CHECKOUT]: [
+      new CheckoutGrafanaCsvParser(),
       new CheckoutInsightsParser(),
       new CheckoutAwsCsvParser(),
       new CheckoutLocalParser(),
@@ -52,6 +77,7 @@ export class P2PParserEngine {
   };
 
   private mappers: Record<AppType, LogMapper>;
+  private metadataExtractors: Record<AppType, MetadataExtractor>;
 
   constructor(config?: P2PParserEngineConfig) {
     const checkoutActions = config?.customCheckoutActions
@@ -69,6 +95,12 @@ export class P2PParserEngine {
       [AppTypes.CHECKOUT]: this.checkoutMapper,
       [AppTypes.REST]: this.restMapper,
       [AppTypes.MICROSITES]: this.genericMapper,
+    };
+
+    this.metadataExtractors = {
+      [AppTypes.CHECKOUT]: new CheckoutMetadataExtractor(),
+      [AppTypes.REST]: new RestMetadataExtractor(),
+      [AppTypes.MICROSITES]: new MicrositesMetadataExtractor(),
     };
   }
 
@@ -179,14 +211,7 @@ export class P2PParserEngine {
       }
     }
 
-    let metadata: ParseMetadata | undefined;
-    if (sessionIds.size > 1) {
-      metadata = {
-        totalSessions: sessionIds.size,
-        sessionIds: Array.from(sessionIds),
-        totalEvents: sortedEvents.length,
-      };
-    }
+    const metadata = this.extractMetadata(sortedEvents, activeType);
 
     return {
       events: sortedEvents,
@@ -194,6 +219,41 @@ export class P2PParserEngine {
       metadata,
       errors,
     };
+  }
+
+  private extractMetadata(
+    events: LogEvent[],
+    activeType: AppType | "ALL",
+  ): ParseMetadata | undefined {
+    if (activeType === "ALL") {
+      const priority: AppType[] = [
+        AppTypes.CHECKOUT,
+        AppTypes.REST,
+        AppTypes.MICROSITES,
+      ];
+      for (const appType of priority) {
+        const result = this.metadataExtractors[appType].extract(events);
+        if (result) return result as ParseMetadata;
+      }
+      return undefined;
+    }
+
+    const extractor = this.metadataExtractors[activeType];
+    return extractor
+      ? (extractor.extract(events) as ParseMetadata | undefined)
+      : undefined;
+  }
+
+  /**
+   * Returns a map of supported log formats per application type.
+   * Useful for integrators to understand detection rules.
+   */
+  public getSupportedFormats(): Record<AppType, StrategyMetadata[]> {
+    const formats: Record<string, StrategyMetadata[]> = {};
+    for (const [type, strategies] of Object.entries(this.strategies)) {
+      formats[type] = strategies.map((s) => s.getMetadata());
+    }
+    return formats as Record<AppType, StrategyMetadata[]>;
   }
 
   private splitLogicalUnits(line: string): string[] {

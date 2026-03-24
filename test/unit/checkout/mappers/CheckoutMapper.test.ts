@@ -1,6 +1,6 @@
 import { DEFAULT_CHECKOUT_ACTION_MAP } from "@/checkout/constants/CheckoutActions";
 import { CheckoutMapper } from "@/checkout/mappers/CheckoutMapper";
-import type { NormalizedLogData } from "@/types";
+import type { CheckoutDetails, NormalizedLogData } from "@/types";
 import { describe, expect, it } from "vitest";
 
 describe("CheckoutMapper", () => {
@@ -139,9 +139,77 @@ describe("CheckoutMapper", () => {
     };
 
     const result = mapper.map(logData, "", 1);
-    const details = result.details as any;
+    const details = result.details as CheckoutDetails;
 
     expect(result.message).toBe("Validation Error (Request)");
     expect(details.endpoint).toBeNull();
+  });
+
+  describe("rawTitle and title fields", () => {
+    it("should always set rawTitle to the raw message", () => {
+      const logData: NormalizedLogData = {
+        timestamp: "2025-12-28T22:17:03.000-05:00",
+        level: "200",
+        message: "Update session state trace: Updating",
+        context: {},
+      };
+
+      const result = mapper.map(logData, "", 20);
+      const details = result.details as CheckoutDetails;
+
+      expect(details.rawTitle).toBe("Update session state trace: Updating");
+      expect(details.title).toBe("Update session state trace: Updating");
+    });
+
+    it("should set rawTitle but NOT title for Gateway (GW_LIB) messages", () => {
+      const logData: NormalizedLogData = {
+        timestamp: "2025-12-28T22:17:03.000-05:00",
+        level: "200",
+        message: "[GW_LIB] HTTP Req",
+        context: {
+          response: {
+            url: "https://api.placetopay.ec/gateway/process",
+          },
+        },
+      };
+
+      const result = mapper.map(logData, "", 21);
+      const details = result.details as CheckoutDetails;
+
+      expect(details.rawTitle).toBe("[GW_LIB] HTTP Req");
+      expect(details.title).toBeUndefined();
+    });
+
+    it("should set rawTitle but NOT title for HTTP Req / HTTP Res messages", () => {
+      const logData: NormalizedLogData = {
+        timestamp: "2025-12-28T22:17:03.000-05:00",
+        level: "200",
+        message: "HTTP Req",
+        context: {
+          request: { url: "https://internal.placetopay.ec/core/tokenize" },
+        },
+      };
+
+      const result = mapper.map(logData, "", 22);
+      const details = result.details as CheckoutDetails;
+
+      expect(details.rawTitle).toBe("HTTP Req");
+      expect(details.title).toBeUndefined();
+    });
+
+    it("should set rawTitle to undefined when message is empty", () => {
+      const logData: NormalizedLogData = {
+        timestamp: "2025-12-28T22:17:03.000-05:00",
+        level: "200",
+        message: "",
+        context: {},
+      };
+
+      const result = mapper.map(logData, "", 23);
+      const details = result.details as CheckoutDetails;
+
+      expect(details.rawTitle).toBeUndefined();
+      expect(details.title).toBeUndefined();
+    });
   });
 });

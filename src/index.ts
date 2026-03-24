@@ -8,3 +8,6 @@ export * from "./types";
 // Export action detail types for custom action maps
 export type { CheckoutActionDetail } from "./checkout/constants/CheckoutActions";
 export type { RestActionDetail } from "./rest/constants/RestActions";
+
+// Strategy and Metadata types
+export type { StrategyMetadata } from "./common/strategies/LogExtractionStrategy";

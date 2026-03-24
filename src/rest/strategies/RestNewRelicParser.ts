@@ -1,5 +1,8 @@
 import type { NormalizedLogData } from "@/types";
-import type { LogExtractionStrategy } from "../../common/strategies/LogExtractionStrategy";
+import type {
+  LogExtractionStrategy,
+  StrategyMetadata,
+} from "../../common/strategies/LogExtractionStrategy";
 
 export class RestNewRelicParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
@@ -30,5 +33,13 @@ export class RestNewRelicParser implements LogExtractionStrategy {
     } catch {
       return null;
     }
+  }
+
+  getMetadata(): StrategyMetadata {
+    return {
+      name: "New Relic Parser",
+      description: "Parses structured JSON logs from New Relic.",
+      detectionRule: "Valid JSON object starting with '{' and ending with '}'.",
+    };
   }
 }
