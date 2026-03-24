@@ -21,7 +21,10 @@ export class CheckoutMapper implements LogMapper {
   private readonly actionMap: Record<string, CheckoutActionDetail>;
 
   constructor(
-    actionMap: Record<string, CheckoutActionDetail> = DEFAULT_CHECKOUT_ACTION_MAP,
+    actionMap: Record<
+      string,
+      CheckoutActionDetail
+    > = DEFAULT_CHECKOUT_ACTION_MAP,
   ) {
     this.actionMap = actionMap;
   }
