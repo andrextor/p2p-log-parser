@@ -135,7 +135,9 @@ export class CheckoutMapper implements LogMapper {
       displayMessage = "State Update (Transaction)";
     } else if (msgRaw.includes("Opening 3DS lightbox")) {
       category = "USER_ACTION";
-      displayMessage = "Deploy 3DS Lightbox";
+      const isLightbox = ctx.openInLightbox;
+      const displayMethod = isLightbox === false ? "Redirection" : "Lightbox";
+      displayMessage = `Opening 3DS (${displayMethod})`;
     } else if (knownAction) {
       displayMessage = knownAction.message;
       category = knownAction.category;
@@ -195,11 +197,7 @@ export class CheckoutMapper implements LogMapper {
         endpoint = normalizePath(rawUrlForEndpoint);
       }
     } else {
-      endpoint = rawUrlForEndpoint
-        ? normalizePath(rawUrlForEndpoint)
-        : isValidationErr
-          ? "Validation Layer"
-          : null;
+      endpoint = rawUrlForEndpoint ? normalizePath(rawUrlForEndpoint) : null;
     }
 
     const method = String(
