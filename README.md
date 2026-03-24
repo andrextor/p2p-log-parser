@@ -19,9 +19,7 @@ A strict, high-performance, Domain-Driven Node.js backend library for parsing, m
 You can install this internal dependency into your project using NPM:
 
 ```bash
-npm install @p2p/log-parser
-# OR
-npm i github:placetopay/log-parser
+npm i @andrextor_ia11012/p2p-log-parser
 ```
 
 ## Basic Usage
