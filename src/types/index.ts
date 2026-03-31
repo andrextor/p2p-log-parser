@@ -26,6 +26,7 @@ export interface NormalizedLogData {
     | "LARAVEL_LOCAL"
     | "NEW_RELIC_JSON"
     | "GRAFANA_CSV"
+    | "GRAFANA_JSON"
     | "UNKNOWN";
 }
 
