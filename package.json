@@ -18,9 +18,7 @@
       "require": "./dist/p2p-log-parser.cjs"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc && vite build",
     "lint": "biome check .",
@@ -36,10 +34,5 @@
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
   },
-  "keywords": [
-    "placetopay",
-    "log",
-    "parser",
-    "masking"
-  ]
+  "keywords": ["placetopay", "log", "parser", "masking"]
 }
