@@ -6,7 +6,7 @@ import { AppTypes, type CheckoutDetails, type LogEvent } from "@/types";
 
 export interface CheckoutSessionMetadata {
   sessionId: string;
-  sessionType: "PAYMENT" | "COLLECT" | "SUBSCRIPTION" | "AUTOPAY" | "UNKNOWN";
+  sessionType: "PAYMENT" | "SUBSCRIPTION" | "AUTOPAY" | "UNKNOWN";
   finalState: string;
   hasSuccessfulTransaction: boolean;
   reference?: string;
@@ -142,6 +142,9 @@ export class CheckoutMetadataExtractor
             row.reference = String(subscription.reference);
           else if (payment?.reference)
             row.reference = String(payment.reference);
+        } else if (payment?.agreement) {
+          row.sessionType = "AUTOPAY";
+          if (payment.reference) row.reference = String(payment.reference);
         } else if (payment && row.sessionType === "UNKNOWN") {
           row.sessionType = "PAYMENT";
           if (payment.reference) row.reference = String(payment.reference);
@@ -155,13 +158,8 @@ export class CheckoutMetadataExtractor
       const steps = sessionSteps.get(sid);
       if (!row || !steps) continue;
 
-      if (row.sessionType === "UNKNOWN" || row.sessionType === "PAYMENT") {
-        if (steps.process && !steps.entry && !steps.show) {
-          row.sessionType = "COLLECT";
-        } else if (
-          (steps.entry || steps.show) &&
-          row.sessionType === "UNKNOWN"
-        ) {
+      if (row.sessionType === "UNKNOWN") {
+        if ((steps.entry || steps.show || steps.process)) {
           row.sessionType = "PAYMENT";
         }
       }
