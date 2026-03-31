@@ -4,6 +4,7 @@ import {
 } from "@/checkout/metadata/CheckoutMetadataExtractor";
 import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
+import { CheckoutGrafanaJsonParser } from "@/checkout/strategies/CheckoutGrafanaJsonParser";
 import { CheckoutInsightsParser } from "@/checkout/strategies/CheckoutInsightsParser";
 import { CheckoutLocalParser } from "@/checkout/strategies/CheckoutLocalParser";
 import type {
@@ -68,6 +69,7 @@ export class P2PParserEngine {
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
     [AppTypes.CHECKOUT]: [
       new CheckoutGrafanaCsvParser(),
+      new CheckoutGrafanaJsonParser(),
       new CheckoutInsightsParser(),
       new CheckoutAwsCsvParser(),
       new CheckoutLocalParser(),

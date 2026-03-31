@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
  
+## [1.2.0] - 2026-03-30
+
+### Added
+- **Grafana JSON Line Parser**: Added `CheckoutGrafanaJsonParser` to precisely parse logs exported from Grafana CloudWatch in JSON/text line format. Integrates natively with `P2PParserEngine` via auto-detection.
+
 ## [1.1.1] - 2026-03-30
 
 ### Added
