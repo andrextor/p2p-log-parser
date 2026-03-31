@@ -60,7 +60,8 @@ export class CheckoutInsightsParser implements LogExtractionStrategy {
     return {
       name: "AWS Insights Parser",
       description: "Parses logs from CloudWatch Insights format.",
-      detectionRule: "/^\\s*(\\d+)\\s+([^\\s]+)\\s+({.*)$/ or JSON with @message",
+      detectionRule:
+        "/^\\s*(\\d+)\\s+([^\\s]+)\\s+({.*)$/ or JSON with @message",
     };
   }
 }

@@ -159,7 +159,7 @@ export class CheckoutMetadataExtractor
       if (!row || !steps) continue;
 
       if (row.sessionType === "UNKNOWN") {
-        if ((steps.entry || steps.show || steps.process)) {
+        if (steps.entry || steps.show || steps.process) {
           row.sessionType = "PAYMENT";
         }
       }
