@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
  
+## [1.1.1] - 2026-03-30
+
+### Added
+- **JSON Insights Parser**: Upgraded `CheckoutInsightsParser` to natively parse JSON arrays/objects from AWS CloudWatch Insights, preserving fallback to the existing regex matcher.
+- **AutoPay Support**: Added explicit detection for `AUTOPAY` session types based on the request payload.
+
+### Changed
+- **Simplified Session Types**: Streamlined `CheckoutMetadataExtractor` logic by deprecating unreliable `COLLECT` identification and focusing purely on `PAYMENT`, `SUBSCRIPTION`, and `AUTOPAY` types depending on explicit request payload markers.
+
 ## [1.1.0] - 2026-03-24
 
 ### Added
