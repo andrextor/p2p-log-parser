@@ -1,6 +1,6 @@
 {
   "name": "@andrextor_ia11012/p2p-log-parser",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A secure, strictly-typed library designed to parse and mask sensitive transaction data from Placetopay JSON payloads.",
   "publishConfig": {
     "access": "public"
