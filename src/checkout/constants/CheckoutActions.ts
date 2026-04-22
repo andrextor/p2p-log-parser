@@ -62,9 +62,9 @@ export const DEFAULT_CHECKOUT_ACTION_MAP: Record<string, CheckoutActionDetail> =
       source: "BACKEND",
     },
     interest: {
-      message: "Installments and Interests Calculation",
-      category: "HTTP_REQ_IN",
-      source: "BACKEND",
+      message: "Interest Calculation Request",
+      category: "USER_ACTION",
+      source: "FRONTEND",
     },
 
     // --- External Notifications & Callbacks ---

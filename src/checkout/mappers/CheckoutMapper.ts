@@ -116,6 +116,8 @@ export class CheckoutMapper implements LogMapper {
         displayMessage = `Gateway: Collect${statusSuffix}${reasonSuffix}`;
       else if (requestUrl.includes("/information"))
         displayMessage = `Gateway: Instrument Information${statusSuffix}`;
+      else if (requestUrl.includes("/interests"))
+        displayMessage = `Gateway: Interest Calculation${statusSuffix}${reasonSuffix}`;
       else
         displayMessage = `Gateway: ${msgRaw.includes("Req") ? "Outgoing Request" : "Response"}`;
     } else if (isCoreApiLog && requestUrl.includes("/core/tokenize")) {
