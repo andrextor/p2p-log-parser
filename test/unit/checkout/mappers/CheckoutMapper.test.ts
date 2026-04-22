@@ -91,6 +91,42 @@ describe("CheckoutMapper", () => {
     expect(result.category).toBe("USER_ACTION");
   });
 
+  it("should map interest action to Interest Calculation Request and identify as FRONTEND", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace POST /api/v4/session/123/information/interest",
+      context: { action_method: "interest" },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("Interest Calculation Request");
+    expect(result.category).toBe("USER_ACTION");
+    expect(result.details.source).toBe("FRONTEND");
+  });
+
+  it("should extract correct displayMessage for Gateway interest calculation", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.886969-05:00",
+      level: "200",
+      message: "[GW_LIB] HTTP Res",
+      context: {
+        response: {
+          url: "https://api.placetopay.ec/gateway/interests",
+          body: {
+            status: { status: "REJECTED", reason: "NR" },
+          },
+        },
+      },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("Gateway: Interest Calculation [REJECTED] (NR)");
+    expect(result.category).toBe("HTTP_RES");
+  });
+
   it("should mark generic Request trace messages as FRONTEND source", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.000-05:00",

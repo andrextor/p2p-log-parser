@@ -1,6 +1,6 @@
 {
   "name": "@andrextor_ia11012/p2p-log-parser",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A secure, strictly-typed library designed to parse and mask sensitive transaction data from Placetopay JSON payloads.",
   "publishConfig": {
     "access": "public"
@@ -18,7 +18,9 @@
       "require": "./dist/p2p-log-parser.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc && vite build",
     "lint": "biome check .",
@@ -34,5 +36,10 @@
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
   },
-  "keywords": ["placetopay", "log", "parser", "masking"]
+  "keywords": [
+    "placetopay",
+    "log",
+    "parser",
+    "masking"
+  ]
 }

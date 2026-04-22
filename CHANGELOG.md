@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-04-21
+
+### Changed
+- **Interest Calculation Titles**: Improved log titles for interest-related operations. "Request trace" logs for interest are now identified as "Interest Calculation Request" with `FRONTEND` source.
+- **Gateway Interest Mapping**: Added specific handling for `/gateway/interests` endpoint in Gateway logs, providing clearer titles and including status/reason suffixes (e.g., `[REJECTED] (NR)`).
+
+### Added
+- **Unit Tests**: Added comprehensive tests in `CheckoutMapper.test.ts` to validate interest calculation mapping and source identification.
+
 ## [1.2.1] - 2026-04-21
 
 ### Fixed
