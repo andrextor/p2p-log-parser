@@ -175,10 +175,27 @@ export class P2PParserEngine {
     });
 
     // 3. Chronological sorting guarantees
-    const sortedEvents = events.sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
+    const sortedEvents = events.sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+
+      if (timeA === timeB) {
+        // Tie-break 1: Use microsecond precision if available
+        if (a.timestamp !== b.timestamp) {
+          return a.timestamp.localeCompare(b.timestamp);
+        }
+
+        // Tie-break 2: If timestamps are 100% identical, ensure Req comes before Res
+        const isReqA = a.category.includes("REQ") || a.message.includes("Req");
+        const isResA = a.category.includes("RES") || a.message.includes("Res");
+        const isReqB = b.category.includes("REQ") || b.message.includes("Req");
+        const isResB = b.category.includes("RES") || b.message.includes("Res");
+
+        if (isReqA && isResB) return -1;
+        if (isResA && isReqB) return 1;
+      }
+      return timeA - timeB;
+    });
 
     // 4. Session grouping and metadata
     const groupedBySession: Record<string, Record<string, LogEvent[]>> = {};

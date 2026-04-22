@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
- 
+
+## [1.2.1] - 2026-04-21
+
+### Fixed
+- **Log Event Sorting**: Improved timestamp tie-breaking in `P2PParserEngine` to guarantee `HTTP Req` is sorted before `HTTP Res` on identical timestamps.
+
+### Changed
+- **Wallet OTP Detection**: Added dynamic mapping for Wallet P2P OTP (`requestOtp`, `checkOtp`) in `CheckoutMapper`.
+- **Frontend Tracing**: Generic `Request trace` logs are now correctly identified as `FRONTEND` source.
 ## [1.2.0] - 2026-03-30
 
 ### Added
