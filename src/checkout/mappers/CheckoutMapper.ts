@@ -72,6 +72,9 @@ export class CheckoutMapper implements LogMapper {
     const actionKey = subType === "checkout.session.created" ? subType : action;
     const knownAction = actionKey ? this.actionMap[actionKey] : null;
 
+    const httpInfo = extractHttpFromMessage(msgRaw);
+    const path = httpInfo.path || "";
+
     let displayMessage = msgRaw;
     let category: LogCategory = "BACKEND_LOG";
     let source = "BACKEND";
@@ -150,6 +153,14 @@ export class CheckoutMapper implements LogMapper {
         displayMessage = "Wallet P2P OTP Generation Request";
       } else if (actionKey === "checkOtp" && msgRaw.includes("wallet")) {
         displayMessage = "Wallet P2P OTP Validation by user";
+      } else if (actionKey === "index") {
+        if (path.includes("/user")) {
+          displayMessage = "Frontend: User data validation";
+          category = "USER_ACTION";
+        } else if (path.includes("/information")) {
+          displayMessage = "Frontend: Requesting payment method information";
+          category = "USER_ACTION";
+        }
       }
 
       const gateway = ctx.body
@@ -188,11 +199,10 @@ export class CheckoutMapper implements LogMapper {
       displayMessage += gatewayName;
     }
 
-    const httpInfo = extractHttpFromMessage(msgRaw);
     const rawUrlForEndpoint =
       requestUrl ||
       (ctx.notification_url ? String(ctx.notification_url) : "") ||
-      httpInfo.path ||
+      path ||
       "";
 
     let endpoint: string | null = null;

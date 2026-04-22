@@ -131,12 +131,42 @@ describe("CheckoutMapper", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
-      message: "Request trace GET /api/v4/session/123/information",
+      message: "Request trace GET /api/v4/session/123/something",
       context: {},
     };
 
     const result = mapper.map(logData, "", 1);
 
+    expect(result.details.source).toBe("FRONTEND");
+  });
+
+  it("should map /user Request trace to Frontend: User data validation", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace POST /api/v4/session/123/abc/user",
+      context: { action_method: "index" },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("Frontend: User data validation");
+    expect(result.category).toBe("USER_ACTION");
+    expect(result.details.source).toBe("FRONTEND");
+  });
+
+  it("should map /information Request trace to Frontend: Requesting payment method information", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace POST /api/v4/session/123/abc/information",
+      context: { action_method: "index" },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("Frontend: Requesting payment method information");
+    expect(result.category).toBe("USER_ACTION");
     expect(result.details.source).toBe("FRONTEND");
   });
 
