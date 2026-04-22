@@ -144,6 +144,12 @@ export class CheckoutMapper implements LogMapper {
       source =
         typeof knownAction.source === "string" ? knownAction.source : "BACKEND";
 
+      if (actionKey === "requestOtp" && msgRaw.includes("wallet")) {
+        displayMessage = "Wallet P2P OTP Generation Request";
+      } else if (actionKey === "checkOtp" && msgRaw.includes("wallet")) {
+        displayMessage = "Wallet P2P OTP Validation by user";
+      }
+
       const gateway = ctx.body
         ? (ctx.body as Record<string, unknown>).gateway
         : ctx.gateway;
@@ -256,6 +262,16 @@ export class CheckoutMapper implements LogMapper {
     ctx: Record<string, unknown>,
   ): string {
     if (data.message.includes("CLICK_TO_PAY-SDK")) return "BACKEND";
+
+    // Front to backend request traces and initial entry events
+    if (
+      data.message.includes("Request trace") ||
+      (data.message.includes("placetopay_event") &&
+        ctx.type === "checkout.session.entry")
+    ) {
+      return "FRONTEND";
+    }
+
     const channel =
       (data as unknown as Record<string, unknown>).channel ?? ctx.channel;
     if (channel === "frontend") return "FRONTEND";

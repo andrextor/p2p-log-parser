@@ -62,6 +62,48 @@ describe("CheckoutMapper", () => {
     expect(result.category).toBe("DB_OP");
   });
 
+  it("should map requestOtp action to Wallet P2P OTP Generation Request and identify as FRONTEND", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace POST /api/v4/session/123/wallet-otp",
+      context: { action_method: "requestOtp" },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("Wallet P2P OTP Generation Request");
+    expect(result.category).toBe("USER_ACTION");
+    expect(result.details.source).toBe("FRONTEND");
+  });
+
+  it("should map checkOtp action generically if no wallet string in message", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace POST /api/v4/session/123/otp",
+      context: { action_method: "checkOtp" },
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.message).toBe("OTP validation by user");
+    expect(result.category).toBe("USER_ACTION");
+  });
+
+  it("should mark generic Request trace messages as FRONTEND source", () => {
+    const logData: NormalizedLogData = {
+      timestamp: "2025-12-28T22:17:03.000-05:00",
+      level: "INFO",
+      message: "Request trace GET /api/v4/session/123/information",
+      context: {},
+    };
+
+    const result = mapper.map(logData, "", 1);
+
+    expect(result.details.source).toBe("FRONTEND");
+  });
+
   it("should use overridden action when custom actionMap is provided", () => {
     const customMapper = new CheckoutMapper({
       ...DEFAULT_CHECKOUT_ACTION_MAP,

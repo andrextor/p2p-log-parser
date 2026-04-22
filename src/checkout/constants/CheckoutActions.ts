@@ -34,6 +34,11 @@ export const DEFAULT_CHECKOUT_ACTION_MAP: Record<string, CheckoutActionDetail> =
       category: "USER_ACTION",
       source: "FRONTEND",
     },
+    requestOtp: {
+      message: "OTP Generation Request",
+      category: "USER_ACTION",
+      source: "FRONTEND",
+    },
     checkOtp: {
       message: "OTP validation by user",
       category: "USER_ACTION",

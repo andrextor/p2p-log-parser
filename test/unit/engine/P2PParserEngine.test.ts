@@ -65,6 +65,42 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(session333.length).toBe(1);
   });
 
+  it("should tie-break identical timestamps using string comparison", () => {
+    const engine = new P2PParserEngine();
+    
+    // Response comes first in log, but lexicographically its timestamp is greater (.882680 vs .882257)
+    // This simulates AWS CloudWatch logs where multiple events in the same millisecond can arrive out of order
+    const mockLog = [
+      `2026-04-20 11:15:54,x,y,"{""message"":""[GW_LIB] HTTP Res"",""context"":{""session_id"":1},""level"":200,""datetime"":""2026-04-20T11:15:54.882680-05:00""}",1,view`,
+      `2026-04-20 11:15:54,x,y,"{""message"":""[GW_LIB] HTTP Req"",""context"":{""session_id"":1},""level"":200,""datetime"":""2026-04-20T11:15:54.882257-05:00""}",1,view`
+    ].join("\n");
+
+    const result = engine.parse(mockLog, AppTypes.CHECKOUT);
+
+    expect(result.events.length).toBe(2);
+    // Req should come before Res due to the microsecond difference
+    expect(result.events[0].message).toContain("Req");
+    expect(result.events[1].message).toContain("Res");
+  });
+
+  it("should force Request before Response if timestamps are 100% identical", () => {
+    const engine = new P2PParserEngine();
+    
+    // Both events have the exact same microsecond timestamp.
+    // Response is parsed first from the text, but the engine should force Req before Res.
+    const mockLog = [
+      `2026-04-20 11:15:54,x,y,"{""message"":""[GW_LIB] HTTP Res"",""context"":{""session_id"":2},""level"":200,""datetime"":""2026-04-20T11:15:54.882-05:00""}",2,view`,
+      `2026-04-20 11:15:54,x,y,"{""message"":""[GW_LIB] HTTP Req"",""context"":{""session_id"":2},""level"":200,""datetime"":""2026-04-20T11:15:54.882-05:00""}",2,view`
+    ].join("\n");
+
+    const result = engine.parse(mockLog, AppTypes.CHECKOUT);
+
+    expect(result.events.length).toBe(2);
+    // Even though timestamps are completely identical, Req should come first
+    expect(result.events[0].message).toContain("Req");
+    expect(result.events[1].message).toContain("Res");
+  });
+
   it("should apply custom checkout actions from engine config", () => {
     const engine = new P2PParserEngine({
       customCheckoutActions: {
