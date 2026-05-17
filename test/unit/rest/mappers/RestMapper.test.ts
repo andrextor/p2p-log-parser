@@ -11,8 +11,8 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: "Random log",
-      context: {},
       sourceType: "NEW_RELIC_JSON",
+      context: {},
     };
     expect(mapper.canHandle(data)).toBe(true);
   });
@@ -22,6 +22,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: "[2025-12-28 10:00:00] production.INFO: Hello World",
+      sourceType: "NEW_RELIC_JSON",
       context: {},
     };
     expect(mapper.canHandle(data)).toBe(true);
@@ -32,6 +33,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: 'Req Event {"provider":"TEST_PROVIDER","action":"request"', // artificially truncated
+      sourceType: "NEW_RELIC_JSON",
       context: {},
     };
 
@@ -49,6 +51,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: '{"operation":"authorize","action":"request"}',
+      sourceType: "NEW_RELIC_JSON",
       context: {},
     };
 
@@ -63,6 +66,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "ERROR",
       message: '{"operation":"authorize"}',
+      sourceType: "NEW_RELIC_JSON",
       context: {
         exception: { message: "`503` Service Unavailable" },
       },
@@ -90,6 +94,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: '{"operation":"authorize","action":"request"}',
+      sourceType: "NEW_RELIC_JSON",
       context: {},
     };
 
@@ -112,6 +117,7 @@ describe("RestMapper Unit Tests", () => {
       timestamp: "2025-12-28",
       level: "INFO",
       message: '{"operation":"refund","action":"request"}',
+      sourceType: "NEW_RELIC_JSON",
       context: {},
     };
 

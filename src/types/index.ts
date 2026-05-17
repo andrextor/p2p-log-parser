@@ -21,13 +21,12 @@ export interface NormalizedLogData {
   level: string;
   message: string;
   context: Record<string, unknown>;
-  sourceType?:
+  sourceType:
     | "AWS_CSV"
     | "LARAVEL_LOCAL"
     | "NEW_RELIC_JSON"
     | "GRAFANA_CSV"
-    | "GRAFANA_JSON"
-    | "UNKNOWN";
+    | "GRAFANA_JSON";
 }
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
@@ -98,30 +97,4 @@ export interface LogEvent {
   details: AppLogDetails;
   context: unknown;
   rawStream?: string;
-}
-
-export interface SessionFunnelSteps {
-  created: number;
-  entry: number;
-  show: number;
-  information: number;
-  interest: number;
-  generateOtp: number;
-  threeDS: number;
-  process: number;
-}
-
-export interface SessionFunnelRow {
-  sessionId: string;
-  sessionType: "PAYMENT" | "COLLECT" | "UNKNOWN";
-  steps: SessionFunnelSteps;
-  _rawTimestamps: {
-    created: number | null;
-    entry: number | null;
-    show: number | null;
-  };
-  durations: {
-    timeToEntry: string | null;
-    timeToShow: string | null;
-  };
 }

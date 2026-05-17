@@ -11,6 +11,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.886969-05:00",
       level: "200",
       message: "[GW_LIB] HTTP Res",
+      sourceType: "GRAFANA_CSV",
       context: {
         response: {
           url: "https://api.placetopay.ec/gateway/otp/generate",
@@ -32,6 +33,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:20:32.067427-05:00",
       level: "200",
       message: "[GW_LIB] HTTP Res",
+      sourceType: "GRAFANA_CSV",
       context: {
         response: {
           url: "https://api.placetopay.ec/gateway/otp/validate",
@@ -53,6 +55,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:20:32.073501-05:00",
       level: "200",
       message: "Update session state trace: Updating",
+      sourceType: "GRAFANA_CSV",
       context: {},
     };
 
@@ -67,6 +70,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace POST /api/v4/session/123/wallet-otp",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "requestOtp" },
     };
 
@@ -82,6 +86,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace POST /api/v4/session/123/otp",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "checkOtp" },
     };
 
@@ -96,6 +101,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace POST /api/v4/session/123/information/interest",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "interest" },
     };
 
@@ -111,6 +117,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.886969-05:00",
       level: "200",
       message: "[GW_LIB] HTTP Res",
+      sourceType: "GRAFANA_CSV",
       context: {
         response: {
           url: "https://api.placetopay.ec/gateway/interests",
@@ -132,6 +139,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace GET /api/v4/session/123/something",
+      sourceType: "GRAFANA_CSV",
       context: {},
     };
 
@@ -145,6 +153,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace POST /api/v4/session/123/abc/user",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "index" },
     };
 
@@ -160,6 +169,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Request trace POST /api/v4/session/123/abc/information",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "index" },
     };
 
@@ -184,6 +194,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "200",
       message: "placetopay_event",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "entry" },
     };
 
@@ -207,6 +218,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "200",
       message: "placetopay_event",
+      sourceType: "GRAFANA_CSV",
       context: { action_method: "myCustomAction" },
     };
 
@@ -221,6 +233,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Opening 3DS lightbox",
+      sourceType: "GRAFANA_CSV",
       context: { openInLightbox: false },
     };
 
@@ -228,6 +241,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "Opening 3DS lightbox",
+      sourceType: "GRAFANA_CSV",
       context: { openInLightbox: true },
     };
 
@@ -243,6 +257,7 @@ describe("CheckoutMapper", () => {
       timestamp: "2025-12-28T22:17:03.000-05:00",
       level: "INFO",
       message: "error validation",
+      sourceType: "GRAFANA_CSV",
       context: {},
     };
 
@@ -259,6 +274,7 @@ describe("CheckoutMapper", () => {
         timestamp: "2025-12-28T22:17:03.000-05:00",
         level: "200",
         message: "Update session state trace: Updating",
+        sourceType: "GRAFANA_CSV",
         context: {},
       };
 
@@ -274,6 +290,7 @@ describe("CheckoutMapper", () => {
         timestamp: "2025-12-28T22:17:03.000-05:00",
         level: "200",
         message: "[GW_LIB] HTTP Req",
+        sourceType: "GRAFANA_CSV",
         context: {
           response: {
             url: "https://api.placetopay.ec/gateway/process",
@@ -293,6 +310,7 @@ describe("CheckoutMapper", () => {
         timestamp: "2025-12-28T22:17:03.000-05:00",
         level: "200",
         message: "HTTP Req",
+        sourceType: "GRAFANA_CSV",
         context: {
           request: { url: "https://internal.placetopay.ec/core/tokenize" },
         },
@@ -310,6 +328,7 @@ describe("CheckoutMapper", () => {
         timestamp: "2025-12-28T22:17:03.000-05:00",
         level: "200",
         message: "",
+        sourceType: "GRAFANA_CSV",
         context: {},
       };
 

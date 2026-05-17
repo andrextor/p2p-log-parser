@@ -64,7 +64,7 @@ export interface ParseResult {
 export class P2PParserEngine {
   private checkoutMapper: CheckoutMapper;
   private restMapper: RestMapper;
-  private genericMapper = new GenericMapper();
+  private genericMapper: Record<AppType, GenericMapper>;
 
   private strategies: Record<AppType, LogExtractionStrategy[]> = {
     [AppTypes.CHECKOUT]: [
@@ -93,10 +93,16 @@ export class P2PParserEngine {
     this.checkoutMapper = new CheckoutMapper(checkoutActions);
     this.restMapper = new RestMapper(restActions);
 
+    this.genericMapper = {
+      [AppTypes.CHECKOUT]: new GenericMapper(AppTypes.CHECKOUT),
+      [AppTypes.REST]: new GenericMapper(AppTypes.REST),
+      [AppTypes.MICROSITES]: new GenericMapper(AppTypes.MICROSITES),
+    };
+
     this.mappers = {
       [AppTypes.CHECKOUT]: this.checkoutMapper,
       [AppTypes.REST]: this.restMapper,
-      [AppTypes.MICROSITES]: this.genericMapper,
+      [AppTypes.MICROSITES]: this.genericMapper[AppTypes.MICROSITES],
     };
 
     this.metadataExtractors = {
@@ -151,7 +157,7 @@ export class P2PParserEngine {
 
           // 2. Mapping
           if (inferredData && inferredApp) {
-            let mapper = this.genericMapper as LogMapper;
+            let mapper: LogMapper = this.genericMapper[inferredApp];
             const preferredMapper = this.mappers[inferredApp];
 
             if (preferredMapper.canHandle(inferredData)) {
@@ -186,13 +192,20 @@ export class P2PParserEngine {
         }
 
         // Tie-break 2: If timestamps are 100% identical, ensure Req comes before Res
-        const isReqA = a.category.includes("REQ") || a.message.includes("Req");
-        const isResA = a.category.includes("RES") || a.message.includes("Res");
-        const isReqB = b.category.includes("REQ") || b.message.includes("Req");
-        const isResB = b.category.includes("RES") || b.message.includes("Res");
+        const isReqA =
+          a.category.includes("REQ") || a.message.includes("HTTP Req");
+        const isResA =
+          a.category.includes("RES") || a.message.includes("HTTP Res");
+        const isReqB =
+          b.category.includes("REQ") || b.message.includes("HTTP Req");
+        const isResB =
+          b.category.includes("RES") || b.message.includes("HTTP Res");
 
         if (isReqA && isResB) return -1;
         if (isResA && isReqB) return 1;
+
+        // Tie-break 3: Deterministic order by event ID
+        return a.id.localeCompare(b.id);
       }
       return timeA - timeB;
     });
