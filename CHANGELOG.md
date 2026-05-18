@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-17
+
+### Changed
+- **Mapper decomposition**: `CheckoutMapper.map()` (204→55 lines) and `RestMapper.map()` (133→48 lines) split into focused private methods. Gateway path if/else chain replaced with lookup table.
+- **Strategy deduplication**: Shared parser utilities (`buildNormalizedLogData`, `resolveTimestamp`, `normalizeLevel`, etc.) extracted to `src/utils/parsers.ts`, used by all 5 JSON strategies.
+- **Constants centralization**: `src/common/constants.ts` with shared `RAW_STREAM_MAX_LENGTH`, domain markers, and gateway path labels.
+- **Metadata extractor refactor**: `CheckoutMetadataExtractor.extract()` decomposed into 6 private methods with try/catch safety.
+- **`sourceType` required**: No longer optional; unused `"UNKNOWN"` literal removed from the union.
+- **Mappers unified**: `??` in all mappers, `GenericMapper` receives `appType` via constructor, `isMatch` uses exact match everywhere.
+
+### Added
+- **Expanded public API**: `ParseMetadata`, `CheckoutParseMetadata`, `RestParseMetadata`, `MicrositesParseMetadata`, `DomainMetadata`, `mergeCheckoutActions`, `mergeRestActions`, `LogMapper`, and mapper utilities now exported.
+- **Sort stability**: Third tie-break by event ID guarantees deterministic ordering.
+
+### Fixed
+- **`normalizePath`**: HTML entity `&quot;` now correctly matched (was missing `;`).
+- **`extractTimestamp`**: Length guard prevents malformed output on short lines.
+- **Metadata pollution**: `RestMetadataExtractor` and `MicrositesMetadataExtractor` now filter by `event.appType`.
+- **Sort precision**: Req/Res detection uses `"HTTP Req"`/`"HTTP Res"` instead of loose substring match.
+
+### Removed
+- **Dead types**: `SessionFunnelSteps` and `SessionFunnelRow`.
+
 ## [1.2.3] - 2026-04-21
 
 ### Changed

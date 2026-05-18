@@ -1,8 +1,9 @@
-import type { NormalizedLogData } from "@/types";
 import type {
   LogExtractionStrategy,
   StrategyMetadata,
-} from "../../common/strategies/LogExtractionStrategy";
+} from "@/common/strategies/LogExtractionStrategy";
+import type { NormalizedLogData } from "@/types";
+import { buildNormalizedLogData } from "@/utils/parsers";
 
 export class RestNewRelicParser implements LogExtractionStrategy {
   parse(line: string): NormalizedLogData | null {
@@ -14,22 +15,13 @@ export class RestNewRelicParser implements LogExtractionStrategy {
 
     try {
       const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-      const timestamp = String(
-        parsed.timestamp || parsed.datetime || new Date().toISOString(),
-      );
-      const level = String(
-        parsed.level || parsed.level_name || "INFO",
-      ).toUpperCase();
-      const message = String(parsed.message || "REST API Log");
-      const context = (parsed.context || parsed) as Record<string, unknown>;
 
-      return {
-        timestamp,
-        level,
-        message,
-        context,
-        sourceType: "NEW_RELIC_JSON",
-      };
+      return buildNormalizedLogData(
+        parsed,
+        "NEW_RELIC_JSON",
+        new Date().toISOString(),
+        "REST API Log",
+      );
     } catch {
       return null;
     }

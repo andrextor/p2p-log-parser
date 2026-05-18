@@ -1,4 +1,5 @@
 import {
+  type AppType,
   AppTypes,
   type LogEvent,
   type LogLevel,
@@ -6,21 +7,33 @@ import {
   type RestDetails,
 } from "@/types";
 import { buildEventId, extractTimestamp } from "@/utils/mapper";
+import { RAW_STREAM_MAX_LENGTH } from "../constants";
 import type { LogMapper } from "./BaseMapper";
 
 export class GenericMapper implements LogMapper {
+  private readonly appType: AppType;
+
+  constructor(appType: AppType = AppTypes.REST) {
+    this.appType = appType;
+  }
+
   canHandle(_data: NormalizedLogData): boolean {
     return true;
   }
 
   isMatch(event: LogEvent, targetId: string): boolean {
     const details = event.details as RestDetails;
-    return event.id === targetId || String(details?.awsRequestId) === targetId;
+    const tId = String(targetId).toLowerCase();
+
+    return (
+      String(event.id).toLowerCase() === tId ||
+      String(details?.awsRequestId).toLowerCase() === tId
+    );
   }
 
   map(data: NormalizedLogData, rawLine: string, index: number): LogEvent {
     const ctx = (data.context ?? {}) as Record<string, unknown>;
-    const message = String(data.message || "Generic Log");
+    const message = String(data.message ?? "Generic Log");
 
     const request = (ctx.request ?? {}) as Record<string, unknown>;
     const response = (ctx.response ?? {}) as Record<string, unknown>;
@@ -32,9 +45,9 @@ export class GenericMapper implements LogMapper {
         rawLine,
       ),
       level: (data.level as LogLevel) ?? "INFO",
-      message: message,
+      message,
       category: this.inferBasicCategory(message),
-      appType: AppTypes.REST,
+      appType: this.appType,
       details: {
         method: String(request.method ?? ""),
         endpoint: String(request.url ?? ""),
@@ -46,7 +59,7 @@ export class GenericMapper implements LogMapper {
         source: "BACKEND",
       } as RestDetails,
       context: data.context,
-      rawStream: rawLine.slice(0, 80),
+      rawStream: rawLine.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
 

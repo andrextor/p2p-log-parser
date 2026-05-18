@@ -12,12 +12,13 @@ export function extractTimestamp(
 ): string {
   if (data.datetime) return String(data.datetime);
   if (data.timestamp) return String(data.timestamp);
+  if (line.length < 23) return new Date().toISOString();
   return line.substring(0, 23).replace(/"/g, "");
 }
 
 export function normalizePath(path: string): string {
   return String(path)
-    .replace(/%22|&quot|"/g, "")
+    .replace(/%22|&quot;|"/g, "")
     .replace(/\/+$/, "");
 }
 

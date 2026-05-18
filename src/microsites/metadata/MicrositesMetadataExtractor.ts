@@ -18,6 +18,7 @@ export class MicrositesMetadataExtractor
     const siteIds = new Set<string>();
 
     for (const event of events) {
+      if (event.appType !== AppTypes.MICROSITES) continue;
       const details = event.details as MicrositesDetails;
       if (details?.siteId) {
         siteIds.add(String(details.siteId));

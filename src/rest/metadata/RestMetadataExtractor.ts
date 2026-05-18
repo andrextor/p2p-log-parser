@@ -20,6 +20,7 @@ export class RestMetadataExtractor
     const providers = new Set<string>();
 
     for (const event of events) {
+      if (event.appType !== AppTypes.REST) continue;
       const details = event.details as RestDetails;
       if (details?.operation) operations.add(details.operation);
       if (details?.provider) providers.add(details.provider);
