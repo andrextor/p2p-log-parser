@@ -3,6 +3,7 @@ export const RAW_STREAM_MAX_LENGTH = 200;
 export const MARKER = {
   GATEWAY: "[GW_LIB]",
   PLACETOPAY_EVENT: "placetopay_event",
+  PLACETOPAY_LOG: "placetopay_log",
   REQUEST_TRACE: "Request trace",
   SESSION_CREATED: "checkout.session.created",
   SESSION_ENTRY: "checkout.session.entry",

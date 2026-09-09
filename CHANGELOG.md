@@ -32,6 +32,17 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 5 — Checkout: taxonomía de trazas y datos honestos
+
+#### Added
+- **`CheckoutDetails.phase` / `step`**: el equipo de `redirection` prefija sus logs con `«{sujeto} trace:»` de forma consistente — ocho sujetos cubren más de cuarenta mensajes distintos. Ahora la fase y el paso son campos, y la **categoría se deduce del prefijo** en vez de adivinarse por palabras sueltas del mensaje (`update`, `save`, `db`), que fallaba en cuanto cambiaba la redacción.
+- **Marcador `placetopay_log`**: no se reconocía, así que sus eventos —`request_not_valid`, `checkout.threeDs.process`, `security.credential_exposure`— dependían de que la línea trajera contexto de sesión por otro lado.
+- **Emparejamiento de las llamadas del gateway**: `[GW_LIB] HTTP Req` y `HTTP Res` se unen por `aws_request_id` más la ruta, que las distingue cuando hay varias llamadas en la misma invocación.
+
+#### Fixed
+- **`statusCode` deja de inventarse en Checkout**: se rellenaba con `200` en cualquier evento y `500` en los de error. Un 200 falso se lee como «respondió correctamente», que es justo lo que no se sabía. Ahora es `null` cuando el log no lo trae.
+- **La metadata de Checkout ya no exige dos sesiones**: devolvía `undefined` por debajo de ese umbral, justo en el caso más común, que es depurar un pago concreto.
+
 ### Fase 4 — Emparejamiento y duración
 
 #### Added

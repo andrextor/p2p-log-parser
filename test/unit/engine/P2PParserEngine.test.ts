@@ -49,7 +49,7 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(session111[1].timestamp).toBe("2025-12-28T22:14:02.116-05");
   });
 
-  it("should run gracefully and skip metadata if only one session exists", () => {
+  it("should still produce metadata when a single session is present", () => {
     const engine = new P2PParserEngine();
     const mockAwsInsights = `"Time","__log__grafana_internal__","__logstream__grafana_internal__","@message","session_id","Value"
 2025-12-28 22:14:01,x,y,"{""message"":""placetopay_event"",""context"":{""type"":""checkout.session.created"",""data"":{""session_id"":333}},""level"":200,""datetime"":""2025-12-28T22:14:01.362-05""}",333,view`;
@@ -57,7 +57,11 @@ describe("P2PParserEngine Grouping Logic", () => {
     const result = engine.parse(mockAwsInsights, AppTypes.CHECKOUT);
 
     expect(result.events.length).toBe(1);
-    expect(result.metadata).toBeUndefined(); // Only injected when length > 1
+    // Depurar un pago concreto es el caso más común: antes se devolvía
+    // `undefined` por debajo de dos sesiones, justo cuando más hace falta.
+    const metadata = result.metadata as import("@/engine").CheckoutParseMetadata;
+    expect(metadata.totalSessions).toBe(1);
+    expect(metadata.sessions[0].sessionId).toBe("333");
 
     expect(result.groupedBySession).toBeDefined();
     if (!result.groupedBySession) return;

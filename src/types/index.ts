@@ -65,6 +65,10 @@ export interface BaseDetails {
 
 export interface CheckoutDetails extends BaseDetails {
   url?: string;
+  /** Fase del flujo, deducida del prefijo `«{sujeto} trace:»`. */
+  phase?: string;
+  /** Paso concreto dentro de la fase. */
+  step?: string;
   duration?: string;
   sessionId?: string | number;
   transactionId?: string | number;
