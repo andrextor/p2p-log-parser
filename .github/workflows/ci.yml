@@ -88,6 +88,26 @@ jobs:
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # npm responde 404 a un PUT cuando la identidad autenticada no puede
+      # escribir en el paquete —incluido el caso «no hay identidad»—, para no
+      # filtrar si existe. Sobre un paquete que si existe eso se lee como
+      # «no esta en el registro», que manda a depurar el sitio equivocado.
+      # Preguntar quien eres antes falla diciendo la verdad.
+      - name: Verify NPM Credentials
+        if: github.event_name == 'push' && steps.check_tag.outputs.exists == 'false'
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "::error::El secreto NPM_TOKEN esta vacio o no existe en este repositorio."
+            exit 1
+          fi
+          if ! WHO=$(npm whoami 2>&1); then
+            echo "::error::NPM_TOKEN no autentica contra el registro: ${WHO}"
+            exit 1
+          fi
+          echo "Publicando como ${WHO}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish Package to NPM
         if: github.event_name == 'push' && steps.check_tag.outputs.exists == 'false'
         run: pnpm publish --no-git-checks
