@@ -60,6 +60,64 @@ export interface ParseResult {
   groupedBySession?: Record<string, Record<string, LogEvent[]>>;
   metadata?: ParseMetadata;
   errors: { line: number; reason: string; content: string }[];
+  stats: ParseStats;
+}
+
+/** Resumen del lote, para cabeceras y paneles sin recorrer los eventos. */
+export interface ParseStats {
+  total: number;
+  byApp: Record<string, number>;
+  byCategory: Record<string, number>;
+  byLevel: Record<string, number>;
+  /** Eventos cuyo `outcome` indica fallo. */
+  errorCount: number;
+  /**
+   * Unidades de texto que ninguna estrategia convirtió en evento. Un número
+   * alto suele significar que se eligió la aplicación equivocada, o que el
+   * export trae un formato todavía no soportado. La fila de cabecera de un CSV
+   * cuenta aquí: no produce evento, aunque sí se aprovecha para leer las
+   * columnas por nombre.
+   */
+  unrecognized: number;
+  timespan?: { from: string; to: string; ms: number };
+}
+
+function emptyStats(): ParseStats {
+  return {
+    total: 0,
+    byApp: {},
+    byCategory: {},
+    byLevel: {},
+    errorCount: 0,
+    unrecognized: 0,
+  };
+}
+
+function buildStats(events: LogEvent[], unrecognized: number): ParseStats {
+  const stats = emptyStats();
+  stats.total = events.length;
+  stats.unrecognized = unrecognized;
+
+  for (const event of events) {
+    stats.byApp[event.appType] = (stats.byApp[event.appType] ?? 0) + 1;
+    stats.byCategory[event.category] =
+      (stats.byCategory[event.category] ?? 0) + 1;
+    stats.byLevel[event.level] = (stats.byLevel[event.level] ?? 0) + 1;
+    if (event.outcome?.isError) stats.errorCount++;
+  }
+
+  const dated = events.filter((e) => Number.isFinite(e.ts));
+  const first = dated[0];
+  const last = dated[dated.length - 1];
+  if (first && last) {
+    stats.timespan = {
+      from: first.timestamp,
+      to: last.timestamp,
+      ms: last.ts - first.ts,
+    };
+  }
+
+  return stats;
 }
 
 export class P2PParserEngine {
@@ -124,11 +182,12 @@ export class P2PParserEngine {
     raw: string,
     activeType: AppType | "ALL" = AppTypes.CHECKOUT,
   ): ParseResult {
-    if (!raw) return { events: [], errors: [] };
+    if (!raw) return { events: [], errors: [], stats: emptyStats() };
 
     const rows = this.sanitizeRaw(raw);
     const events: LogEvent[] = [];
     const errors: ParseResult["errors"] = [];
+    let unrecognized = 0;
 
     const allApps = Object.values(AppTypes) as AppType[];
     const appPriority =
@@ -174,6 +233,8 @@ export class P2PParserEngine {
             }
 
             events.push(mapper.map(inferredData, unit, index));
+          } else {
+            unrecognized++;
           }
         }
       } catch (err) {
@@ -257,6 +318,7 @@ export class P2PParserEngine {
       groupedBySession,
       metadata,
       errors,
+      stats: buildStats(sortedEvents, unrecognized),
     };
   }
 

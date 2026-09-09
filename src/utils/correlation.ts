@@ -59,6 +59,7 @@ export function buildCorrelation(
     tenant: first(ctx.TENANT_DOMAIN),
     siteId: first(ctx.site_id, data.site_id),
     login: first(ctx.login, asRecord(body.auth).login),
+    bin: first(ctx.bin, asRecord(asRecord(ctx.context).data).bin, data.bin),
     tenantId: first(ext.tenantId, ctx.tenantId),
   };
 

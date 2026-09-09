@@ -32,6 +32,23 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 7 — Superficie pública
+
+#### Added
+- **`matchEvent(event, id)`**: una única función para seguir una traza. Compara el id del evento, cualquiera de sus identificadores de correlación y la clave del intercambio; acepta mayúsculas, minúsculas y espacios sobrantes.
+- **`ParseResult.stats`**: `{total, byApp, byCategory, byLevel, errorCount, unrecognized, timespan}`, para cabeceras y paneles sin recorrer los eventos otra vez. `unrecognized` cuenta el texto que ninguna estrategia convirtió en evento, que es la señal de «te equivocaste de aplicación» o «este formato aún no está soportado».
+- **`Correlation.bin`**, con el que se rastrea en REST.
+
+#### Removed
+- **`LogMapper.isMatch`** y sus tres implementaciones. Estaba definido en cada mapper y **no se llamaba desde ningún sitio**, que es justamente por lo que el consumidor visual acabó reescribiendo esa lógica con su propia lista de rutas donde buscar.
+
+### Fase 6 — Microsites
+
+Aplazada. No hay logs reales de Microsites contra los que validar, y la Fase 0
+demostró lo que pasa al construir un parser sobre el contrato del emisor sin
+datos con los que comprobarlo. Microsites sigue funcionando con
+`LaravelLineParser` y el mapper genérico.
+
 ### Fase 5 — Checkout: taxonomía de trazas y datos honestos
 
 #### Added

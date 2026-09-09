@@ -21,16 +21,6 @@ export class GenericMapper implements LogMapper {
     return true;
   }
 
-  isMatch(event: LogEvent, targetId: string): boolean {
-    const details = event.details as RestDetails;
-    const tId = String(targetId).toLowerCase();
-
-    return (
-      String(event.id).toLowerCase() === tId ||
-      String(details?.awsRequestId).toLowerCase() === tId
-    );
-  }
-
   map(data: NormalizedLogData, rawLine: string, _index: number): LogEvent {
     const ctx = (data.context ?? {}) as Record<string, unknown>;
     const message = String(data.message ?? "Generic Log");

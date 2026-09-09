@@ -92,23 +92,6 @@ export class RestMapper implements LogMapper {
     );
   }
 
-  isMatch(event: LogEvent, targetId: string): boolean {
-    const details = event.details as RestDetails;
-    const tId = String(targetId).toLowerCase();
-    const payload = asRecord(details?.payload);
-    const correlation = event.correlation;
-
-    return (
-      String(event.id).toLowerCase() === tId ||
-      String(correlation.traceId ?? "").toLowerCase() === tId ||
-      String(correlation.reference ?? "").toLowerCase() === tId ||
-      String(details?.awsRequestId ?? "").toLowerCase() === tId ||
-      String(payload.id ?? "").toLowerCase() === tId ||
-      String(payload.reference ?? "").toLowerCase() === tId ||
-      String(payload.bin ?? "").toLowerCase() === tId
-    );
-  }
-
   map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const msgRaw = data.message ?? "";
     const shape = this.readShape(data);

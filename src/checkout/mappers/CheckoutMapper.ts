@@ -80,22 +80,6 @@ export class CheckoutMapper implements LogMapper {
     );
   }
 
-  isMatch(event: LogEvent, targetId: string): boolean {
-    const details = event.details as CheckoutDetails;
-    const ctx = (event.context ?? {}) as Record<string, unknown>;
-    const payload = (ctx.payload ?? {}) as Record<string, unknown>;
-    const tId = String(targetId).toLowerCase();
-
-    return (
-      String(event.id).toLowerCase() === tId ||
-      String(details?.sessionId).toLowerCase() === tId ||
-      String(details?.transactionId).toLowerCase() === tId ||
-      String(details?.awsRequestId).toLowerCase() === tId ||
-      String(ctx?.aws_request_id).toLowerCase() === tId ||
-      String(payload?.session_id).toLowerCase() === tId
-    );
-  }
-
   map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const ext = this.extractContext(data);
     const traceParts = readTracePhase(ext.msgRaw);

@@ -133,6 +133,8 @@ export interface Correlation {
   tenantId?: string;
   siteId?: string;
   login?: string;
+  /** BIN de la tarjeta, con el que se rastrea en REST. */
+  bin?: string;
 }
 
 // --- 5. OUTCOME ---

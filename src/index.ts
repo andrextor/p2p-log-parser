@@ -3,6 +3,7 @@ export { P2PParserEngine } from "./engine";
 export type {
   P2PParserEngineConfig,
   ParseResult,
+  ParseStats,
   ParseMetadata,
   DomainMetadata,
   CheckoutParseMetadata,
@@ -48,5 +49,6 @@ export {
   extractHttpFromMessage,
 } from "./utils/mapper";
 export { resolveOutcome } from "./common/outcome";
+export { matchEvent } from "./utils/match";
 export { buildCorrelation } from "./utils/correlation";
 export { toEpochMs, DEFAULT_TZ_OFFSET } from "./utils/time";
