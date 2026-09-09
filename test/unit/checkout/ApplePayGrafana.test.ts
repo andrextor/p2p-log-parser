@@ -40,3 +40,38 @@ describe("Apple Pay en un export de Grafana", () => {
     expect(trace?.pairKey).toBeUndefined();
   });
 });
+
+/** Llamada del Core API que no es `/core/tokenize`: se quedaba sin titulo. */
+const CORE = [
+  "\"Time\",\"__log__grafana_internal__\",\"__logstream__grafana_internal__\",\"@message\"",
+  "2026-09-09 14:44:39,583550948756:/aws/lambda/vapor-webcheckout-test-d,2026/09/09/[867]aaa,\"{\"\"message\"\": \"\"HTTP Req\"\", \"\"context\"\": {\"\"TENANT_DOMAIN\"\": \"\"checkout-test.placetopay.com\"\", \"\"session_id\"\": 3856697, \"\"request\"\": {\"\"url\"\": \"\"https://api-test.placetopay.com/core/ads/search\"\", \"\"method\"\": \"\"POST\"\", \"\"body\"\": {\"\"auth\"\": {\"\"login\"\": \"\"placetopay_redirection\"\"}}}, \"\"aws_request_id\"\": \"\"1716a77b-9761-4ecb-a029-c68a8eda3db0\"\"}, \"\"level\"\": 200, \"\"level_name\"\": \"\"INFO\"\", \"\"channel\"\": \"\"test\"\", \"\"datetime\"\": \"\"2026-09-09T14:44:39.100000-05:00\"\", \"\"extra\"\": {\"\"tenantId\"\": 50}}\"",
+  "2026-09-09 14:44:39,583550948756:/aws/lambda/vapor-webcheckout-test-d,2026/09/09/[867]aaa,\"{\"\"message\"\": \"\"HTTP Res\"\", \"\"context\"\": {\"\"TENANT_DOMAIN\"\": \"\"checkout-test.placetopay.com\"\", \"\"session_id\"\": 3856697, \"\"response\"\": {\"\"url\"\": \"\"https://api-test.placetopay.com/core/ads/search\"\", \"\"status_code\"\": 404, \"\"body\"\": {\"\"status\"\": {\"\"status\"\": \"\"FAILED\"\", \"\"reason\"\": \"\"XH\"\", \"\"message\"\": \"\"The route core/ads/search could not be found.\"\"}}, \"\"message\"\": \"\"Not Found\"\"}, \"\"aws_request_id\"\": \"\"1716a77b-9761-4ecb-a029-c68a8eda3db0\"\"}, \"\"level\"\": 200, \"\"level_name\"\": \"\"INFO\"\", \"\"channel\"\": \"\"test\"\", \"\"datetime\"\": \"\"2026-09-09T14:44:39.250000-05:00\"\", \"\"extra\"\": {\"\"tenantId\"\": 50}}\"",
+].join("\n");
+
+describe("Core API en Checkout", () => {
+  const engine = new P2PParserEngine();
+  const events = () => engine.parse(CORE, AppTypes.CHECKOUT).events;
+
+  it("da titulo legible en vez de «HTTP Req» a secas", () => {
+    const [req, res] = events();
+    expect(req.message).toBe("Core API | POST /core/ads/search");
+    expect(res.message).toBe("Core API | 404 Not Found");
+  });
+
+  it("identifica el servicio y clasifica bien la respuesta", () => {
+    const [req, res] = events();
+    const providerOf = (e: (typeof events extends () => infer R ? R : never)[number]) =>
+      (e.details as { provider?: string }).provider;
+    expect(providerOf(req)).toBe("CORE_API");
+    expect(providerOf(res)).toBe("CORE_API");
+    // Antes caia en BACKEND_LOG y la tarjeta no sabia que era una respuesta.
+    expect(req.category).toBe("HTTP_REQ_OUT");
+    expect(res.category).toBe("HTTP_RES");
+  });
+
+  it("mantiene el rechazo de negocio que trae el cuerpo", () => {
+    const res = events()[1];
+    expect(res.outcome?.isError).toBe(true);
+    expect(res.outcome?.code).toBe("XH");
+  });
+});

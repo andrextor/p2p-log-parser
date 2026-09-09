@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-09-09
+
+### Fixed
+- **El Core API se quedaba sin título fuera de `/core/tokenize`.** Sus registros
+  llegan con el mensaje `HTTP Req` / `HTTP Res` a secas, y solo la tokenización
+  tenía un caso propio; el resto de rutas caía al genérico y aparecía en la
+  línea de tiempo con ese texto, sin proveedor y con la respuesta clasificada
+  como `BACKEND_LOG`. Ahora cualquier ruta del Core API produce
+  `Core API | POST /core/ads/search` y `Core API | 404 Not Found`, con
+  `provider: CORE_API` y las categorías `HTTP_REQ_OUT` / `HTTP_RES`. La ruta
+  sale del mismo sitio que `details.endpoint`, para que título y endpoint no
+  describan la llamada de dos maneras.
+
 ## [2.2.0] - 2026-09-09
 
 ### Fixed

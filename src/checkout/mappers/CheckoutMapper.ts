@@ -219,15 +219,8 @@ export class CheckoutMapper implements LogMapper {
       return this.buildGatewayMessage(ext);
     }
 
-    if (isCoreApiLog && ext.requestUrl.includes("/core/tokenize")) {
-      return {
-        displayMessage: ext.msgRaw.includes("Req")
-          ? "Core: Request Tokenization"
-          : "Core: Token Generated",
-        category: ext.msgRaw.includes("Req") ? "HTTP_REQ_OUT" : "HTTP_RES",
-        source: "BACKEND",
-        provider: "CORE_API",
-      };
+    if (isCoreApiLog) {
+      return this.buildCoreApiMessage(ext);
     }
 
     if (
@@ -403,6 +396,46 @@ export class CheckoutMapper implements LogMapper {
     return {
       pairKey: `${String(traceId)}|${path}`,
       pairRole: isRequest ? "request" : "response",
+    };
+  }
+
+  /**
+   * Los registros del Core API llegan con el mensaje `HTTP Req` / `HTTP Res` a
+   * secas, que no dice nada en una línea de tiempo. Solo `/core/tokenize` tenía
+   * nombre propio; el resto de rutas se caía al genérico y se quedaba sin
+   * título, sin proveedor y con la respuesta clasificada como log de backend.
+   */
+  private buildCoreApiMessage(ext: ExtractedContext): BuildMessageResult {
+    const isRequest = ext.msgRaw.includes("Req");
+
+    // La tokenización conserva su redacción: es lo que más se depura.
+    if (ext.requestUrl.includes("/core/tokenize")) {
+      return {
+        displayMessage: isRequest
+          ? "Core: Request Tokenization"
+          : "Core: Token Generated",
+        category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
+        source: "BACKEND",
+        provider: "CORE_API",
+      };
+    }
+
+    const detail = isRequest
+      ? [
+          String(ext.request.method ?? "").toUpperCase(),
+          // La misma ruta que `details.endpoint`, para que título y endpoint
+          // no digan cosas distintas de la misma llamada.
+          this.buildEndpoint(ext.requestUrl, ext.path, ext.ctx, false, true),
+        ]
+      : [ext.response.status_code, ext.response.message];
+
+    const suffix = detail.filter(Boolean).join(" ");
+
+    return {
+      displayMessage: `Core API | ${suffix || (isRequest ? "Request" : "Response")}`,
+      category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
+      source: "BACKEND",
+      provider: "CORE_API",
     };
   }
 
