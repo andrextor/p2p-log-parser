@@ -32,6 +32,13 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 9 — Documentación
+
+#### Fixed
+- **El README prometía un enmascarado que no existe**: «Auto Data Masking: Redacts sensitive payment data such as PAN, CVV…». No hay una línea de código de masking en `src/`, y `npm pack` confirma que el README viaja dentro del paquete —npm lo incluye siempre, ni `files` ni `.npmignore` pueden excluirlo—, así que esa afirmación era la portada del paquete en npm. Se sustituye por lo que de verdad ocurre: los valores llegan ya enmascarados desde el origen (`maskValue`, `secureValue`) y el parser los preserva.
+- **El README documentaba la API v1**: sin `correlation`, `outcome`, `durationMs`, `matchEvent` ni `stats`. Reescrito, con una sección de migración desde 1.x.
+- **`AGENTS.md`** recoge la regla rectora del proyecto, las reglas nuevas para mappers (rellenar siempre `buildEventBase` y `outcome`; no inventar `statusCode`) y las trampas del despliegue.
+
 ### Fase 8 — Consumo en `log-trace-p2p`
 
 La v2 se estrena en el visualizador. El cambio allí es **−259 / +108 líneas**:
