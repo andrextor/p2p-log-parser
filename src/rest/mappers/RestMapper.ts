@@ -47,6 +47,9 @@ interface Resolution {
   transport?: RestDetails["transport"];
   requestBody?: unknown;
   responseBody?: unknown;
+  /** Lado del intercambio, cuando la ida y la vuelta son registros distintos. */
+  role?: LogEvent["pairRole"];
+  durationMs?: number;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -155,13 +158,15 @@ export class RestMapper implements LogMapper {
       rawTitle: msgRaw || undefined,
     };
 
+    const base = buildEventBase(
+      asRecord(data.context),
+      data.timestamp,
+      message,
+      data.extra,
+    );
+
     return {
-      ...buildEventBase(
-        asRecord(data.context),
-        data.timestamp,
-        message,
-        data.extra,
-      ),
+      ...base,
       timestamp: data.timestamp,
       level,
       message,
@@ -170,6 +175,13 @@ export class RestMapper implements LogMapper {
       details,
       context: data.context,
       outcome,
+      pairKey: this.buildPairKey(
+        base.correlation.traceId,
+        shape,
+        resolved.role,
+      ),
+      pairRole: resolved.role,
+      durationMs: resolved.durationMs,
       rawStream: msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
@@ -233,6 +245,7 @@ export class RestMapper implements LogMapper {
     return {
       message: `${label} | ${actionLabel}${suffix}`,
       category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
+      role: isRequest ? "request" : "response",
       transport: this.readTransport(shape),
       requestBody: isRequest ? shape.inner.data : undefined,
       responseBody: isRequest ? undefined : shape.inner.data,
@@ -249,10 +262,17 @@ export class RestMapper implements LogMapper {
     const url = String(request.url ?? response.url ?? shape.payload.uri ?? "");
 
     if (marker === "HTTP Stats") {
+      // `time` viene en segundos. El registro no lleva identificador de traza,
+      // así que la duración se queda en el propio evento: no hay forma fiable
+      // de atribuirla a un intercambio concreto.
+      const seconds = Number(shape.payload.time);
       return {
         message: `Transfer statistics${url ? ` · ${url}` : ""}`,
         category: "BACKEND_LOG",
         transport: "http",
+        durationMs: Number.isFinite(seconds)
+          ? Math.round(seconds * 1000)
+          : undefined,
       };
     }
 
@@ -269,6 +289,7 @@ export class RestMapper implements LogMapper {
       message: `${shape.provider} | HTTP ${isRequest ? "Request" : "Response"}`,
       category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
       statusCode: (response.status_code as number) ?? null,
+      role: isRequest ? "request" : "response",
       transport: "http",
       requestBody: request.body,
       responseBody: response.body,
@@ -356,6 +377,19 @@ export class RestMapper implements LogMapper {
     }
 
     return { ...resolved, category: "ERROR" };
+  }
+
+  /**
+   * Identifica el intercambio. Sin traza no hay forma fiable de emparejar, así
+   * que se prefiere no emparejar antes que unir eventos que no van juntos.
+   */
+  private buildPairKey(
+    traceId: string | undefined,
+    shape: Shape,
+    role: LogEvent["pairRole"],
+  ): string | undefined {
+    if (!role || !traceId) return undefined;
+    return `${traceId}|${shape.provider}|${shape.operation}`;
   }
 
   // ── Lecturas puntuales ──

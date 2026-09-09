@@ -21,7 +21,7 @@ describe("New Relic CSV export (REST, end to end)", () => {
 
   it("parses every row of the export", () => {
     // Antes de la estrategia CSV este mismo export producía 0 eventos.
-    expect(result.events).toHaveLength(6);
+    expect(result.events).toHaveLength(7);
     expect(result.errors).toHaveLength(0);
     expect(result.events.every((e) => e.appType === AppTypes.REST)).toBe(true);
   });
@@ -103,6 +103,29 @@ describe("New Relic CSV export (REST, end to end)", () => {
 
     expect(alert?.level).toBe("CRITICAL");
     expect(alert?.category).toBe("APPLICATION_LOG");
+  });
+
+  it("pairs each request with its response and measures the exchange", () => {
+    const request = byMessage("Transaction Authorization | REQUEST DECRYPTED");
+    const response = byMessage("Error 88");
+
+    expect(request?.pairRole).toBe("request");
+    expect(response?.pairRole).toBe("response");
+    expect(request?.pairKey).toBe(response?.pairKey);
+    // 13:35:41.094 → 13:35:45.477 en el export original.
+    expect(request?.durationMs).toBe(4383);
+    expect(response?.durationMs).toBe(4383);
+  });
+
+  it("keeps the two exchanges of the same trace apart by operation", () => {
+    const sale = byMessage("Transaction Authorization | REQUEST DECRYPTED");
+    const query = byMessage("Transaction Query | REQUEST DECRYPTED");
+
+    // Ambos comparten `id`; solo la operación los distingue.
+    expect(sale?.correlation.traceId).toBe(query?.correlation.traceId);
+    expect(sale?.pairKey).not.toBe(query?.pairKey);
+    // 13:35:45.959 → 13:35:48.571 (Date trunca los microsegundos a ms).
+    expect(query?.durationMs).toBe(2612);
   });
 
   it("orders events chronologically across log files", () => {

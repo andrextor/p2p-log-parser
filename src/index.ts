@@ -24,7 +24,10 @@ export {
   describeOperation,
   isRequestAction,
 } from "./rest/constants/RestOperations";
-export type { RestErrorSummary } from "./rest/metadata/RestMetadataExtractor";
+export type {
+  RestErrorSummary,
+  RestExchangeSummary,
+} from "./rest/metadata/RestMetadataExtractor";
 
 // Strategy and Metadata types
 export type { StrategyMetadata } from "./common/strategies/LogExtractionStrategy";

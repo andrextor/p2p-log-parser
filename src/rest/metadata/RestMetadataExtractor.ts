@@ -11,6 +11,14 @@ export interface RestParseMetadata extends DomainMetadata {
   operations: string[];
   providers: string[];
   errors: RestErrorSummary[];
+  /** Los diez intercambios más lentos, de mayor a menor. */
+  slowest: RestExchangeSummary[];
+}
+
+export interface RestExchangeSummary {
+  provider: string;
+  operation: string;
+  durationMs: number;
 }
 
 export interface RestErrorSummary {
@@ -31,6 +39,7 @@ export class RestMetadataExtractor
     const providers = new Set<string>();
     const requestsByProvider: Record<string, number> = {};
     const errors: RestErrorSummary[] = [];
+    const exchanges: RestExchangeSummary[] = [];
     let totalRequests = 0;
 
     for (const event of events) {
@@ -51,6 +60,14 @@ export class RestMetadataExtractor
           requestsByProvider[provider] =
             (requestsByProvider[provider] ?? 0) + 1;
         }
+      }
+
+      if (event.pairRole === "response" && event.durationMs !== undefined) {
+        exchanges.push({
+          provider: provider || "unknown",
+          operation: details?.operation ?? "unknown",
+          durationMs: event.durationMs,
+        });
       }
 
       if (event.category === "ERROR") {
@@ -74,6 +91,9 @@ export class RestMetadataExtractor
       operations: Array.from(operations),
       providers: Array.from(providers),
       errors,
+      slowest: exchanges
+        .sort((a, b) => b.durationMs - a.durationMs)
+        .slice(0, 10),
     };
   }
 }

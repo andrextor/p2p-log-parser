@@ -216,6 +216,8 @@ export class P2PParserEngine {
       return timeA - timeB;
     });
 
+    this.pairExchanges(sortedEvents);
+
     // 4. Session grouping and metadata
     const groupedBySession: Record<string, Record<string, LogEvent[]>> = {};
     const sessionIds = new Set<string>();
@@ -256,6 +258,51 @@ export class P2PParserEngine {
       metadata,
       errors,
     };
+  }
+
+  /**
+   * Une cada petición con su respuesta y calcula la duración del intercambio.
+   *
+   * Una sola pasada sobre los eventos ya ordenados. Las peticiones abiertas se
+   * guardan en cola por `pairKey` y se consumen en orden de llegada, de modo
+   * que un reintento sobre la misma traza empareja con su propia respuesta y no
+   * con la del intento anterior. Las que se quedan sin respuesta se marcan
+   * `PENDING`: puede ser un fallo, o simplemente que el export está recortado.
+   */
+  private pairExchanges(events: LogEvent[]): void {
+    const open = new Map<string, LogEvent[]>();
+
+    for (const event of events) {
+      if (!event.pairKey) continue;
+
+      if (event.pairRole === "request") {
+        const queue = open.get(event.pairKey);
+        if (queue) queue.push(event);
+        else open.set(event.pairKey, [event]);
+        continue;
+      }
+
+      if (event.pairRole !== "response") continue;
+
+      const request = open.get(event.pairKey)?.shift();
+      if (!request) continue;
+
+      const duration = event.ts - request.ts;
+      if (Number.isFinite(duration) && duration >= 0) {
+        request.durationMs = duration;
+        event.durationMs = duration;
+      }
+    }
+
+    for (const queue of open.values()) {
+      for (const request of queue) {
+        request.outcome = {
+          isError: false,
+          ...request.outcome,
+          status: "PENDING",
+        };
+      }
+    }
   }
 
   private extractMetadata(

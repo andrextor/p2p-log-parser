@@ -32,6 +32,19 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 4 — Emparejamiento y duración
+
+#### Added
+- **`LogEvent.pairKey` / `pairRole` / `durationMs`**: la ida y la vuelta de un mismo intercambio quedan unidas y se mide cuánto tardó. La clave la fija el mapper, que es quien sabe si el registro es petición o respuesta; el motor solo empareja y calcula, en una pasada sobre los eventos ya ordenados.
+- **`Outcome.status: "PENDING"`** para las peticiones que se quedan sin respuesta, que puede ser un fallo o simplemente un export recortado.
+- **`RestParseMetadata.slowest`**: los diez intercambios más lentos.
+
+#### Notas
+- Las peticiones abiertas se consumen en orden de llegada, de modo que un reintento sobre la misma traza empareja con su propia respuesta y no con la del intento anterior.
+- Dos intercambios de la misma traza se distinguen por operación: en un export real, `sale` y `query` comparten `id`.
+- `HTTP Stats` sí trae el tiempo de transferencia real, pero no lleva identificador de traza, así que la duración se queda en su propio evento en vez de atribuirse a un intercambio concreto.
+- La duración tiene precisión de milisegundo: los logs traen microsegundos, que `Date` trunca.
+
 ### Fase 3 — Modelo de resultado unificado
 
 #### Added

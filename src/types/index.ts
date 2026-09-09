@@ -140,7 +140,7 @@ export interface Correlation {
  */
 export interface Outcome {
   isError: boolean;
-  status?: "OK" | "FAILED" | "REJECTED";
+  status?: "OK" | "FAILED" | "REJECTED" | "PENDING";
   /**
    * Origen del fallo: excepción de transporte, rechazo de negocio del
    * proveedor, código HTTP, o validación de la petición.
@@ -172,4 +172,13 @@ export interface LogEvent {
   correlation: Correlation;
   /** Resultado de la operación, para no re-derivarlo en la capa visual. */
   outcome?: Outcome;
+
+  /**
+   * Clave que une la ida y la vuelta de un mismo intercambio. La fija el
+   * mapper, que es quien sabe si el registro es petición o respuesta.
+   */
+  pairKey?: string;
+  pairRole?: "request" | "response";
+  /** Milisegundos entre la petición y su respuesta; presente en ambas. */
+  durationMs?: number;
 }
