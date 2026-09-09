@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-09-09
+
+### Fixed
+- **Checkout emparejaba solo las llamadas del gateway propio.** El rol de un
+  registro de `guzzle-logger` se deducía del texto del mensaje (`HTTP Req` /
+  `HTTP Res`, o el marcador `[GW_LIB]`), y cada integración lo redacta a su
+  manera: Apple Pay, Google Pay o Click to Pay quedaban como dos eventos
+  sueltos aunque compartieran `aws_request_id` y URL. Ahora el rol sale de la
+  forma del contexto —un registro trae `request` o `response`, nunca los dos—,
+  que es estable entre integraciones. El texto del mensaje se sigue mirando
+  primero, así que los formatos que ya emparejaban no cambian.
+
+  Además, la comparación con `HTTP Req` / `HTTP Res` exigía igualdad exacta del
+  mensaje, y los SDK lo emiten con prefijo de integración
+  (`APPLE_PAY-SDK: HTTP Req`). Ahora basta con que lo contenga. Hay un test con
+  un export real de Grafana que lo cubre.
+
 ## [2.1.0] - 2026-09-09
 
 ### Changed
