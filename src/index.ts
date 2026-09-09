@@ -18,6 +18,13 @@ export type { CheckoutActionDetail } from "./checkout/constants/CheckoutActions"
 export { mergeCheckoutActions } from "./checkout/constants/CheckoutActions";
 export type { RestActionDetail } from "./rest/constants/RestActions";
 export { mergeRestActions } from "./rest/constants/RestActions";
+export {
+  REST_OPERATION_LABELS,
+  CHANNEL_PROVIDERS,
+  describeOperation,
+  isRequestAction,
+} from "./rest/constants/RestOperations";
+export type { RestErrorSummary } from "./rest/metadata/RestMetadataExtractor";
 
 // Strategy and Metadata types
 export type { StrategyMetadata } from "./common/strategies/LogExtractionStrategy";

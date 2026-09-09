@@ -74,7 +74,7 @@ export class P2PParserEngine {
       new CheckoutAwsCsvParser(),
       new LaravelLineParser(),
     ],
-    [AppTypes.REST]: [new RestNewRelicParser()],
+    [AppTypes.REST]: [new RestNewRelicParser(), new LaravelLineParser()],
     [AppTypes.MICROSITES]: [new LaravelLineParser()],
   };
 

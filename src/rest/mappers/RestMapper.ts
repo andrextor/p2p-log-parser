@@ -6,46 +6,52 @@ import {
   type LogEvent,
   type NormalizedLogData,
   type RestDetails,
+  type RestException,
 } from "@/types";
 import { buildEventBase } from "@/utils/mapper";
 import {
   DEFAULT_REST_ACTION_MAP,
   type RestActionDetail,
+  findRestAction,
 } from "../constants/RestActions";
+import {
+  CHANNEL_PROVIDERS,
+  describeOperation,
+  isRequestAction,
+} from "../constants/RestOperations";
 
-interface RestInternalException {
-  message?: string;
-  [key: string]: unknown;
+/** Mensajes que emite `placetopay/guzzle-logger`. */
+const GUZZLE_MESSAGES = ["HTTP Req", "HTTP Res", "HTTP Except", "HTTP Stats"];
+
+/** Mensajes que emite el carrier SOAP heredado (Diners). */
+const SOAP_MESSAGES = ["REQUEST", "RESPONSE", "RESPONSE Fault"];
+
+const LARAVEL_TAG = /^\[([A-Z][\w -]*)\](?:\[([A-Z_]+)\])?/;
+
+interface Shape {
+  /** Payload efectivo: contexto Atropos o JSON incrustado en el mensaje. */
+  payload: Record<string, unknown>;
+  /** Sub-contexto Atropos: `{method, endpoint, data|exception}`. */
+  inner: Record<string, unknown>;
+  provider: string;
+  operation: string;
+  action: string;
+  isLaravel: boolean;
 }
 
-interface RestInternalData {
-  dinBody?: { recordsCount?: number; [key: string]: unknown };
-  dinError?: { code?: number | string; message?: string };
-  [key: string]: unknown;
+interface Resolution {
+  message: string;
+  category: LogCategory;
+  statusCode?: number | string | null;
+  transport?: RestDetails["transport"];
+  requestBody?: unknown;
+  responseBody?: unknown;
 }
 
-interface RestInternalContext {
-  endpoint?: string;
-  method?: string;
-  exception?: RestInternalException;
-  data?: RestInternalData;
-  [key: string]: unknown;
-}
-
-interface RestInternalPayload {
-  provider?: string;
-  TENANT_DOMAIN?: string;
-  service?: string;
-  operation?: string;
-  endpoint?: string;
-  action?: string;
-  reference?: string;
-  id?: string | number;
-  exception?: RestInternalException;
-  error?: { code?: number | string; message?: string };
-  context?: RestInternalContext;
-  data?: RestInternalData;
-  [key: string]: unknown;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 export class RestMapper implements LogMapper {
@@ -59,15 +65,22 @@ export class RestMapper implements LogMapper {
 
   canHandle(data: NormalizedLogData): boolean {
     const msg = String(data.message ?? "");
-    const context = data.context as Record<string, unknown>;
-    const isLaravelFile = String(context?.filePath ?? "").includes(
-      "laravel.log",
-    );
+    const ctx = asRecord(data.context);
+    const isLaravelFile = String(ctx.filePath ?? "").includes("laravel.log");
     const hasLaravelPattern =
       /production\.(INFO|ALERT|WARNING|CRITICAL|ERROR|NOTICE|DEBUG)/.test(msg);
+    // Log del middleware `HttpLogger`: la petición entrante va serializada en
+    // el mensaje, sin `provider` ni canal que delaten el dominio.
+    const isInboundHttp =
+      ctx.method !== undefined &&
+      ctx.uri !== undefined &&
+      ctx.responseStatusCode !== undefined;
 
     return !!(
       data.sourceType === "NEW_RELIC_JSON" ||
+      (data.channel && data.channel in CHANNEL_PROVIDERS) ||
+      (ctx.provider && ctx.action) ||
+      isInboundHttp ||
       isLaravelFile ||
       hasLaravelPattern ||
       msg.includes("RestSdk") ||
@@ -78,117 +91,346 @@ export class RestMapper implements LogMapper {
   isMatch(event: LogEvent, targetId: string): boolean {
     const details = event.details as RestDetails;
     const tId = String(targetId).toLowerCase();
-    const payload = (details?.payload as Record<string, unknown>) ?? {};
+    const payload = asRecord(details?.payload);
+    const correlation = event.correlation;
 
     return (
       String(event.id).toLowerCase() === tId ||
-      String(details?.awsRequestId).toLowerCase() === tId ||
-      String(
-        (event.context as Record<string, unknown>)?.messageId,
-      ).toLowerCase() === tId ||
-      String(payload?.id ?? "").toLowerCase() === tId ||
-      String(payload?.reference ?? "").toLowerCase() === tId ||
-      String(payload?.bin ?? "").toLowerCase() === tId
+      String(correlation.traceId ?? "").toLowerCase() === tId ||
+      String(correlation.reference ?? "").toLowerCase() === tId ||
+      String(details?.awsRequestId ?? "").toLowerCase() === tId ||
+      String(payload.id ?? "").toLowerCase() === tId ||
+      String(payload.reference ?? "").toLowerCase() === tId ||
+      String(payload.bin ?? "").toLowerCase() === tId
     );
   }
 
   map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const msgRaw = data.message ?? "";
-    const nrContext = (data.context ?? {}) as Record<string, unknown>;
+    const shape = this.readShape(data);
 
-    const internalData = this.parseInternalJson(msgRaw) as RestInternalPayload;
+    const resolved =
+      this.resolveAtropos(shape) ??
+      this.resolveGuzzle(msgRaw, shape) ??
+      this.resolveInboundHttp(shape) ??
+      this.resolveSoap(msgRaw, shape) ??
+      this.resolveApplicationLog(msgRaw, shape);
 
-    const isLaravelLog = msgRaw.includes("production.");
+    const exception = this.readException(shape, data);
+    const failure = this.resolveFailure(shape, exception, resolved);
 
-    const provider = String(
-      internalData?.provider ??
-        internalData?.TENANT_DOMAIN ??
-        internalData?.service ??
-        (isLaravelLog ? "LARAVEL" : "API_REST"),
-    );
-
-    const operation = String(
-      internalData?.operation ??
-        (isLaravelLog ? "System Log" : "API Operation"),
-    );
-
-    const extractedEndpoint = String(
-      internalData?.context?.endpoint ??
-        internalData?.endpoint ??
-        nrContext.filePath ??
-        "unknown",
-    );
-
-    const extractedMethod = String(
-      internalData?.context?.method ?? (isLaravelLog ? "DEBUG" : "POST"),
-    );
-
-    let category: LogCategory;
-    let displayMessage: string;
-
-    if (isLaravelLog) {
-      category = "APPLICATION_LOG";
-      displayMessage = this.parseLaravelMessage(msgRaw);
-    } else {
-      const result = this.buildSdkMessage(internalData, operation);
-      category = result.category;
-      displayMessage = result.displayMessage;
-    }
-
-    const errorResult = this.resolveErrorState(
-      internalData,
-      nrContext,
-      provider,
-    );
-    if (errorResult) {
-      category = errorResult.category;
-      displayMessage = errorResult.displayMessage;
-    }
-
-    const isError = category === "ERROR";
-    const statusCode =
-      errorResult?.statusCode ?? (category === "HTTP_RES" ? 200 : null);
+    const message = failure?.message ?? resolved.message;
+    const category = failure?.category ?? resolved.category;
+    const statusCode = failure?.statusCode ?? resolved.statusCode ?? null;
+    const level = category === "ERROR" ? "ERROR" : data.level;
 
     const details: RestDetails = {
-      provider,
-      operation: internalData?.reference
-        ? `REF: ${internalData.reference}`
-        : operation,
-      action: String(
-        internalData?.action ?? (isLaravelLog ? "LOG_EVENT" : "N/A"),
-      ),
-      method: extractedMethod,
-      endpoint: extractedEndpoint,
+      provider: shape.provider,
+      operation: shape.operation || null,
+      action: shape.action || null,
+      channel: data.channel ?? null,
+      simulator: shape.payload.simulatorMode === true ? true : undefined,
+      transport: resolved.transport,
+      tag: this.readTag(msgRaw),
+      method: this.readMethod(shape),
+      endpoint: this.readEndpoint(shape, data),
       statusCode,
-      awsRequestId: String(nrContext.messageId ?? internalData?.id ?? ""),
-      payload: internalData ?? { raw: msgRaw },
-      exception: isError
-        ? ((internalData?.context?.exception as
-            | Record<string, unknown>
-            | undefined) ??
-          (nrContext.exception as Record<string, unknown> | undefined) ??
-          (internalData?.exception as Record<string, unknown> | undefined))
-        : undefined,
+      requestBody: resolved.requestBody,
+      responseBody: resolved.responseBody,
+      awsRequestId: String(
+        asRecord(data.context).messageId ?? shape.payload.id ?? "",
+      ),
+      payload: Object.keys(shape.payload).length
+        ? shape.payload
+        : { raw: msgRaw },
+      exception,
       source: "BACKEND",
-      isLaravel: isLaravelLog,
+      isLaravel: shape.isLaravel,
+      rawTitle: msgRaw || undefined,
     };
 
-    const message = displayMessage || "Trace event";
-
     return {
-      ...buildEventBase(nrContext, data.timestamp, message, data.extra),
+      ...buildEventBase(
+        asRecord(data.context),
+        data.timestamp,
+        message,
+        data.extra,
+      ),
       timestamp: data.timestamp,
-      level: isError ? "ERROR" : data.level,
+      level,
       message,
       category,
       appType: AppTypes.REST,
       details,
-      context: nrContext,
+      context: data.context,
       rawStream: msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
 
-  // ── Private: Laravel message parsing ──
+  // ── Lectura de la forma del registro ──
+
+  /**
+   * Determina de dónde salen los datos estructurados.
+   *
+   * Los logs de SDK (Atropos) los traen en `context`; los exports donde la línea
+   * entera quedó serializada dentro del texto los traen incrustados en el
+   * mensaje. Antes solo se miraba el mensaje, así que un registro bien formado
+   * de New Relic perdía toda la estructura.
+   */
+  private readShape(data: NormalizedLogData): Shape {
+    const ctx = asRecord(data.context);
+    const embedded = asRecord(this.parseInternalJson(data.message ?? ""));
+
+    const payload = ctx.provider && ctx.action ? ctx : { ...ctx, ...embedded };
+
+    const inner = asRecord(payload.context ?? payload.data);
+    const isLaravel = String(data.message ?? "").includes("production.");
+
+    const provider = String(
+      payload.provider ??
+        payload.TENANT_DOMAIN ??
+        payload.service ??
+        (data.channel ? CHANNEL_PROVIDERS[data.channel] : undefined) ??
+        (isLaravel ? "LARAVEL" : "API_REST"),
+    );
+
+    return {
+      payload,
+      inner,
+      provider,
+      operation: payload.operation ? String(payload.operation) : "",
+      action: payload.action ? String(payload.action) : "",
+      isLaravel,
+    };
+  }
+
+  // ── Cascada de formatos ──
+
+  /** Formato canónico de los SDK de proveedor (Atropos/Tangram). */
+  private resolveAtropos(shape: Shape): Resolution | null {
+    // Se mira `payload.provider`, no `shape.provider`: este último trae un
+    // valor por defecto y haría que cualquier log con `action` pareciera Atropos.
+    if (!shape.action || !(shape.payload.provider || shape.operation)) {
+      return null;
+    }
+    if (GUZZLE_MESSAGES.includes(shape.action)) return null;
+
+    const isRequest = isRequestAction(shape.action);
+    const label = this.describeOperation(shape.operation);
+    const actionLabel = shape.action.toUpperCase().replace(/-/g, " ");
+
+    const body = asRecord(this.readDinBody(shape));
+    const records = Number(body.recordsCount ?? 0);
+    const suffix = !isRequest && records > 0 ? ` (${records} records)` : "";
+
+    return {
+      message: `${label} | ${actionLabel}${suffix}`,
+      category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
+      transport: this.readTransport(shape),
+      requestBody: isRequest ? shape.inner.data : undefined,
+      responseBody: isRequest ? undefined : shape.inner.data,
+    };
+  }
+
+  /** `HTTP Req` / `HTTP Res` / `HTTP Except` / `HTTP Stats` de guzzle-logger. */
+  private resolveGuzzle(msgRaw: string, shape: Shape): Resolution | null {
+    const marker = GUZZLE_MESSAGES.find((m) => msgRaw.includes(m));
+    if (!marker) return null;
+
+    const request = asRecord(shape.payload.request);
+    const response = asRecord(shape.payload.response);
+    const url = String(request.url ?? response.url ?? shape.payload.uri ?? "");
+
+    if (marker === "HTTP Stats") {
+      return {
+        message: `Transfer statistics${url ? ` · ${url}` : ""}`,
+        category: "BACKEND_LOG",
+        transport: "http",
+      };
+    }
+
+    if (marker === "HTTP Except") {
+      return {
+        message: "HTTP transport failure",
+        category: "ERROR",
+        transport: "http",
+      };
+    }
+
+    const isRequest = marker === "HTTP Req";
+    return {
+      message: `${shape.provider} | HTTP ${isRequest ? "Request" : "Response"}`,
+      category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
+      statusCode: (response.status_code as number) ?? null,
+      transport: "http",
+      requestBody: request.body,
+      responseBody: response.body,
+    };
+  }
+
+  /**
+   * Log del middleware `HttpLogger` de rest-services (canal `http`): el mensaje
+   * es un JSON con la petición entrante y su código de respuesta.
+   */
+  private resolveInboundHttp(shape: Shape): Resolution | null {
+    const p = shape.payload;
+    if (!p.method || !p.uri || p.responseStatusCode === undefined) return null;
+
+    return {
+      message: `API ${String(p.method).toUpperCase()} ${String(p.uri)}`,
+      category: "HTTP_REQ_IN",
+      statusCode: p.responseStatusCode as number,
+      transport: "http",
+      requestBody: p.bodyRequest,
+      responseBody: p.bodyResponse,
+    };
+  }
+
+  /** Carrier SOAP heredado: `REQUEST` / `RESPONSE` / `RESPONSE Fault`. */
+  private resolveSoap(msgRaw: string, shape: Shape): Resolution | null {
+    const trimmed = msgRaw.trim();
+    if (!SOAP_MESSAGES.includes(trimmed)) return null;
+
+    const isRequest = trimmed === "REQUEST";
+    const reference = shape.payload.reference
+      ? ` · ${String(shape.payload.reference)}`
+      : "";
+
+    return {
+      message: `${shape.provider} SOAP ${isRequest ? "Request" : "Response"}${reference}`,
+      category:
+        trimmed === "RESPONSE Fault"
+          ? "ERROR"
+          : isRequest
+            ? "HTTP_REQ_OUT"
+            : "HTTP_RES",
+      transport: "soap",
+      requestBody: isRequest ? shape.payload.request : undefined,
+      responseBody: isRequest ? undefined : shape.payload.result,
+    };
+  }
+
+  /** Log de aplicación Laravel, con o sin etiqueta `[TAG]`. */
+  private resolveApplicationLog(msgRaw: string, shape: Shape): Resolution {
+    const text = shape.isLaravel ? this.parseLaravelMessage(msgRaw) : msgRaw;
+    const known = findRestAction(text || msgRaw, this.actionMap);
+
+    return {
+      message: known?.message ?? text ?? "Trace event",
+      category: known?.category ?? "APPLICATION_LOG",
+      transport: "internal",
+    };
+  }
+
+  // ── Errores ──
+
+  private readException(
+    shape: Shape,
+    data: NormalizedLogData,
+  ): RestException | undefined {
+    const raw =
+      shape.inner.exception ??
+      shape.payload.exception ??
+      asRecord(data.context).exception;
+
+    if (!raw || typeof raw !== "object") return undefined;
+    const e = raw as Record<string, unknown>;
+
+    return {
+      class: e.class ? String(e.class) : undefined,
+      message: e.message ? String(e.message) : undefined,
+      file: e.file ? String(e.file) : undefined,
+      line: e.line !== undefined ? Number(e.line) : undefined,
+    };
+  }
+
+  private resolveFailure(
+    shape: Shape,
+    exception: RestException | undefined,
+    resolved: Resolution,
+  ): Resolution | null {
+    if (exception) {
+      const msg = exception.message ?? "";
+      const codeMatch = msg.match(/`(\d{3})`/);
+      return {
+        message: `Critical Failure [${shape.provider}]: ${msg.substring(0, 60)}...`,
+        category: "ERROR",
+        statusCode: codeMatch ? codeMatch[1] : 500,
+      };
+    }
+
+    const bizError = asRecord(
+      shape.inner.dinError ??
+        asRecord(shape.inner.data).dinError ??
+        shape.payload.error ??
+        asRecord(shape.payload.data).dinError,
+    );
+
+    if (bizError.code && bizError.code !== "0000") {
+      return {
+        message: `${shape.provider} | Error ${bizError.code}: ${bizError.message ?? "Failed Op."}`,
+        category: "ERROR",
+        statusCode: bizError.code as string | number,
+      };
+    }
+
+    const status = Number(resolved.statusCode);
+    if (Number.isFinite(status) && status >= 400) {
+      return { ...resolved, category: "ERROR" };
+    }
+
+    return null;
+  }
+
+  // ── Lecturas puntuales ──
+
+  /**
+   * El mapa de acciones sigue teniendo prioridad sobre el catálogo para que los
+   * integradores puedan sobrescribir la etiqueta de una operación vía
+   * `customRestActions`.
+   */
+  private describeOperation(operation: string): string {
+    if (!operation) return "API Operation";
+    return this.actionMap[operation]?.message ?? describeOperation(operation);
+  }
+
+  private readTransport(shape: Shape): RestDetails["transport"] {
+    if (shape.inner.soapOptions || shape.payload.soapOptions) return "soap";
+    if (shape.inner.iso8583 || shape.payload.iso8583) return "iso8583";
+    if (shape.inner.endpoint || shape.inner.method) return "http";
+    return undefined;
+  }
+
+  private readDinBody(shape: Shape): unknown {
+    return (
+      asRecord(shape.inner.data).dinBody ??
+      asRecord(shape.payload.data).dinBody ??
+      asRecord(shape.inner).dinBody
+    );
+  }
+
+  private readMethod(shape: Shape): string | null {
+    const method = shape.inner.method ?? shape.payload.method;
+    return method ? String(method).toUpperCase() : null;
+  }
+
+  private readEndpoint(shape: Shape, data: NormalizedLogData): string | null {
+    const endpoint =
+      shape.inner.endpoint ??
+      shape.payload.endpoint ??
+      shape.payload.uri ??
+      asRecord(shape.payload.request).url ??
+      asRecord(shape.payload.response).url ??
+      asRecord(data.context).filePath;
+
+    return endpoint ? String(endpoint) : null;
+  }
+
+  private readTag(msgRaw: string): string | null {
+    const match = msgRaw.match(LARAVEL_TAG);
+    if (!match) return null;
+    return match[2] ? `${match[1]}/${match[2]}` : match[1];
+  }
 
   private parseLaravelMessage(msgRaw: string): string {
     const parts = msgRaw.split("production.");
@@ -203,75 +445,7 @@ export class RestMapper implements LogMapper {
       : messageWithJson.trim();
   }
 
-  // ── Private: SDK/API message building ──
-
-  private buildSdkMessage(
-    internalData: RestInternalPayload | null,
-    operation: string,
-  ): { category: LogCategory; displayMessage: string } {
-    const action = String(internalData?.action ?? "N/A");
-    const category: LogCategory = action.toLowerCase().includes("request")
-      ? "HTTP_REQ_OUT"
-      : "HTTP_RES";
-
-    const knownAction = this.actionMap[operation];
-    let displayMessage = knownAction ? knownAction.message : operation;
-
-    displayMessage += ` | ${action.toUpperCase().replace("-", " ")}`;
-
-    const body =
-      internalData?.context?.data?.dinBody ?? internalData?.data?.dinBody;
-    if ((body?.recordsCount ?? 0) > 0 && category === "HTTP_RES") {
-      displayMessage += ` (${body?.recordsCount} records)`;
-    }
-
-    return { category, displayMessage };
-  }
-
-  // ── Private: error/status resolution ──
-
-  private resolveErrorState(
-    internalData: RestInternalPayload | null,
-    nrContext: Record<string, unknown>,
-    provider: string,
-  ): {
-    category: LogCategory;
-    displayMessage: string;
-    statusCode?: string | number;
-  } | null {
-    if (!internalData) return null;
-
-    const exception =
-      internalData.context?.exception ??
-      nrContext.exception ??
-      internalData.exception;
-    const bizError =
-      internalData.context?.data?.dinError ??
-      internalData.error ??
-      internalData.data?.dinError;
-
-    if (exception) {
-      const msg = String((exception as RestInternalException).message ?? "");
-      const codeMatch = msg.match(/`(\d{3})`/);
-      return {
-        category: "ERROR",
-        statusCode: codeMatch ? codeMatch[1] : 500,
-        displayMessage: `Critical Failure [${provider}]: ${msg.substring(0, 60)}...`,
-      };
-    }
-
-    if (bizError?.code && bizError.code !== "0000") {
-      return {
-        category: "ERROR",
-        statusCode: bizError.code,
-        displayMessage: `${provider} | Error ${bizError.code}: ${bizError.message ?? "Failed Op."}`,
-      };
-    }
-
-    return null;
-  }
-
-  // ── Private: JSON repair ──
+  // ── Reparación de JSON incrustado ──
 
   private parseInternalJson(message: string): unknown {
     if (typeof message !== "string") return null;

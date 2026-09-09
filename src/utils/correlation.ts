@@ -33,6 +33,9 @@ export function buildCorrelation(
   const body = Object.keys(asRecord(ctx.body)).length
     ? asRecord(ctx.body)
     : asRecord(request.body);
+  // Forma del middleware `HttpLogger` de rest-services (canal `http`).
+  const bodyRequest = asRecord(ctx.bodyRequest);
+  const bodyResponse = asRecord(ctx.bodyResponse);
 
   const correlation: Correlation = {
     traceId: first(ctx.aws_request_id, ctx.id, ctx.messageId, ctx.requestId),
@@ -43,13 +46,19 @@ export function buildCorrelation(
       ctx.reference,
       asRecord(body.payment).reference,
       asRecord(body.subscription).reference,
+      bodyRequest.reference,
     ),
-    internalReference: first(ctx.internalReference, body.internalReference),
+    internalReference: first(
+      ctx.internalReference,
+      body.internalReference,
+      bodyRequest.internalReference,
+      bodyResponse.internalReference,
+    ),
     provider: first(ctx.provider),
     operation: first(ctx.operation),
     tenant: first(ctx.TENANT_DOMAIN),
     siteId: first(ctx.site_id, data.site_id),
-    login: first(asRecord(body.auth).login),
+    login: first(ctx.login, asRecord(body.auth).login),
     tenantId: first(ext.tenantId, ctx.tenantId),
   };
 

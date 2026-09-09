@@ -72,12 +72,30 @@ export interface CheckoutDetails extends BaseDetails {
   provider?: string | null;
 }
 
+export interface RestException {
+  class?: string;
+  message?: string;
+  file?: string;
+  line?: number;
+}
+
 export interface RestDetails extends BaseDetails {
   provider?: string | null;
+  /** Operación del SDK: `sale`, `createOTP`, `creditType`… */
   operation?: string | null;
+  /** Acción Atropos: `request`, `response`, `request-decrypted`… */
   action?: string | null;
+  /** Canal Monolog del registro; identifica al proveedor cuando falta `provider`. */
+  channel?: string | null;
+  /** `true` cuando el SDK corrió contra el simulador y no contra el proveedor real. */
+  simulator?: boolean;
+  transport?: "http" | "soap" | "iso8583" | "internal";
+  /** Etiqueta de log de aplicación: `[KOUNT]`, `[SUBSCRIPTION][PAYMENT_PROCESS]`… */
+  tag?: string | null;
+  requestBody?: unknown;
+  responseBody?: unknown;
   awsRequestId?: string | null;
-  exception?: unknown;
+  exception?: RestException;
   isLaravel?: boolean;
 }
 

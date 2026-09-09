@@ -32,6 +32,27 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 2 — REST sobre el contrato real de los emisores
+
+#### Added
+- **Catálogo de operaciones** (`REST_OPERATION_LABELS`): ~50 operaciones tomadas de `PlacetoPay\Base\Constants\Operations` y de las clases `AdditionalOperations` de cada SDK, frente a las 7 entradas anteriores.
+- **`CHANNEL_PROVIDERS`**: el canal Monolog (`interdin`, `credibanco`, `datafast`…) identifica al proveedor cuando el contexto no trae `provider`.
+- **Formatos reconocidos**: contexto Atropos/Tangram (el formato dominante de los SDK), `HTTP Req`/`HTTP Res`/`HTTP Except`/`HTTP Stats` de guzzle-logger, el log HTTP entrante del middleware `HttpLogger` (canal `http`) y el carrier SOAP heredado (`REQUEST`/`RESPONSE`/`RESPONSE Fault`).
+- **`RestDetails`** gana `channel`, `simulator`, `transport`, `tag`, `requestBody` y `responseBody`; `exception` pasa de `unknown` a `RestException` tipada.
+- **`RestParseMetadata`** gana `totalRequests`, `requestsByProvider` y `errors[]`.
+
+#### Fixed
+- **La estructura se lee de `context`, no del texto del mensaje**: los SDK emiten `{id, provider, action, operation, context:{method, endpoint, data}}` en el contexto del registro; el mapper solo miraba el JSON incrustado en el mensaje, así que un registro bien formado de New Relic perdía toda la información.
+- **`statusCode` deja de inventarse**: antes se ponía `200` en toda respuesta y `500` en todo error. Ahora sale de `response.status_code` o de `responseStatusCode`, y es `null` cuando el log no lo trae.
+- **Los fallos de proveedor ya se ven como error**: los listeners de Tangram registran las excepciones con nivel `warning`; ahora un registro con `context.exception` se promueve a `ERROR`.
+- **`RestNewRelicParser` deja de aceptar cualquier JSON**: exigía solo `{`…`}`, así que se apropiaba de líneas que no eran logs. Y ya no inventa `Date.now()` como marca de tiempo.
+- **Las líneas Laravel se registran como fuente REST**: antes se detectaban por la lista de Checkout y el evento salía con `appType: "checkout"`, que el consumidor tenía que parchear a mano.
+- **Los fragmentos de mensajes Laravel vuelven a traducirse**: estaban en el mapa de acciones pero solo se consultaba por clave exacta de operación, así que nunca coincidían.
+
+#### Changed (rupturas)
+- Los mensajes de los eventos REST cambian al usar el catálogo real de operaciones.
+- `DEFAULT_REST_ACTION_MAP` conserva solo fragmentos de mensajes Laravel; las operaciones viven en `RestOperations.ts`. `customRestActions` sigue teniendo prioridad para sobrescribir la etiqueta de una operación.
+
 ## [1.3.0] - 2026-05-17
 
 ### Changed
