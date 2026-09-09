@@ -44,5 +44,6 @@ export {
   normalizePath,
   extractHttpFromMessage,
 } from "./utils/mapper";
+export { resolveOutcome } from "./common/outcome";
 export { buildCorrelation } from "./utils/correlation";
 export { toEpochMs, DEFAULT_TZ_OFFSET } from "./utils/time";

@@ -32,6 +32,20 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 3 — Modelo de resultado unificado
+
+#### Added
+- **`LogEvent.outcome`**: un solo campo responde «¿esto salió bien?» — `{isError, status, kind, httpStatus, code, message, exception}`. `kind` distingue el origen del fallo: excepción de transporte, rechazo de negocio del proveedor, código HTTP o validación de la petición.
+- **`resolveOutcome`** exportado, para mappers personalizados.
+
+#### Fixed
+- **La decisión de «esto falló» estaba repartida**: cada mapper la resolvía por su cuenta y la capa visual la volvía a derivar mirando nivel, categoría, `statusCode` y `dinError` por separado. Ahora se resuelve una vez, en `src/common/outcome.ts`.
+- **La validación se clasifica antes que la excepción que la transporta**: una excepción con `reason: "request_not_valid"` es un error de validación, que es la clasificación precisa.
+- **Un log crítico dejaba de etiquetarse como «Validation Error»**: la condición heredada `level === "500"` mezclaba criticidad con validación. La validación se decide ahora por sus propias señales (`request_not_valid`, `"error validation"` en el mensaje).
+
+#### Notas
+- El rechazo del gateway de Checkout (`status.status !== "OK"`) queda reflejado en `outcome`, pero la **categoría** de esos eventos no cambia: Checkout ya lo representa en el mensaje. Alinear categorías es alcance de la fase de Checkout.
+
 ### Fase 0 — Validación contra un export real de New Relic
 
 Al pasar un export real de New Relic Logs de la API REST por el parser, el

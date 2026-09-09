@@ -51,11 +51,33 @@ describe("New Relic CSV export (REST, end to end)", () => {
     expect((declined?.details as RestDetails).statusCode).toBe("88");
   });
 
+  it("exposes a single outcome the consumer can trust", () => {
+    // Sustituye la lógica que la capa visual repetía: nivel, categoría y
+    // `dinError` mirados por separado para decidir si algo falló.
+    const declined = byMessage("Error 88");
+    const collect = byMessage("/gateway/collect");
+    const reverse = byMessage("/gateway/transaction");
+
+    expect(declined?.outcome).toMatchObject({
+      isError: true,
+      kind: "business",
+      code: "88",
+      message: "Transacción negada",
+    });
+    expect(collect?.outcome).toMatchObject({ isError: false, httpStatus: 200 });
+    expect(reverse?.outcome).toMatchObject({
+      isError: true,
+      kind: "http",
+      httpStatus: 400,
+    });
+  });
+
   it("does not treat dinError code 0000 as a failure", () => {
     const ok = byMessage("Transaction Query | RESPONSE DECRYPTED");
 
     expect(ok?.category).toBe("HTTP_RES");
     expect(ok?.level).toBe("INFO");
+    expect(ok?.outcome?.isError).toBe(false);
   });
 
   it("extracts the inbound API request, its status and its identifiers", () => {

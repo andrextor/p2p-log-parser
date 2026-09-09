@@ -1,3 +1,4 @@
+import { resolveOutcome } from "@/common/outcome";
 import {
   type AppType,
   AppTypes,
@@ -60,6 +61,12 @@ export class GenericMapper implements LogMapper {
         source: "BACKEND",
       } as RestDetails,
       context: data.context,
+      outcome: resolveOutcome({
+        context: ctx,
+        payload: ctx,
+        statusCode: (response.status_code ?? null) as number | null,
+        message,
+      }),
       rawStream: rawLine.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }

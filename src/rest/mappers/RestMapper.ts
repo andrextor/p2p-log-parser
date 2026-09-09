@@ -1,12 +1,13 @@
 import { RAW_STREAM_MAX_LENGTH } from "@/common/constants";
 import type { LogMapper } from "@/common/mappers/BaseMapper";
+import { resolveOutcome } from "@/common/outcome";
 import {
   AppTypes,
   type LogCategory,
   type LogEvent,
   type NormalizedLogData,
+  type Outcome,
   type RestDetails,
-  type RestException,
 } from "@/types";
 import { buildEventBase } from "@/utils/mapper";
 import {
@@ -27,9 +28,6 @@ const GUZZLE_MESSAGES = ["HTTP Req", "HTTP Res", "HTTP Except", "HTTP Stats"];
 const SOAP_MESSAGES = ["REQUEST", "RESPONSE", "RESPONSE Fault"];
 
 const LARAVEL_TAG = /^\[([A-Z][\w -]*)\](?:\[([A-Z_]+)\])?/;
-
-/** Códigos de `dinError` que significan «sin error». */
-const OK_BUSINESS_CODES = new Set(["0", "00", "0000"]);
 
 interface Shape {
   /** Payload efectivo: contexto Atropos o JSON incrustado en el mensaje. */
@@ -119,8 +117,13 @@ export class RestMapper implements LogMapper {
       this.resolveSoap(msgRaw, shape) ??
       this.resolveApplicationLog(msgRaw, shape);
 
-    const exception = this.readException(shape, data);
-    const failure = this.resolveFailure(shape, exception, resolved);
+    const outcome = resolveOutcome({
+      context: asRecord(data.context),
+      payload: shape.payload,
+      statusCode: resolved.statusCode,
+      message: msgRaw,
+    });
+    const failure = this.resolveFailure(shape, outcome, resolved);
 
     const message = failure?.message ?? resolved.message;
     const category = failure?.category ?? resolved.category;
@@ -146,7 +149,7 @@ export class RestMapper implements LogMapper {
       payload: Object.keys(shape.payload).length
         ? shape.payload
         : { raw: msgRaw },
-      exception,
+      exception: outcome.exception,
       source: "BACKEND",
       isLaravel: shape.isLaravel,
       rawTitle: msgRaw || undefined,
@@ -166,6 +169,7 @@ export class RestMapper implements LogMapper {
       appType: AppTypes.REST,
       details,
       context: data.context,
+      outcome,
       rawStream: msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
@@ -327,71 +331,31 @@ export class RestMapper implements LogMapper {
 
   // ── Errores ──
 
-  private readException(
-    shape: Shape,
-    data: NormalizedLogData,
-  ): RestException | undefined {
-    const raw =
-      shape.inner.exception ??
-      shape.payload.exception ??
-      asRecord(data.context).exception;
-
-    if (!raw || typeof raw !== "object") return undefined;
-    const e = raw as Record<string, unknown>;
-
-    return {
-      class: e.class ? String(e.class) : undefined,
-      message: e.message ? String(e.message) : undefined,
-      file: e.file ? String(e.file) : undefined,
-      line: e.line !== undefined ? Number(e.line) : undefined,
-    };
-  }
-
+  /** Traduce el `Outcome` al mensaje y la categoría que muestra el consumidor. */
   private resolveFailure(
     shape: Shape,
-    exception: RestException | undefined,
+    outcome: Outcome,
     resolved: Resolution,
   ): Resolution | null {
-    if (exception) {
-      const msg = exception.message ?? "";
-      const codeMatch = msg.match(/`(\d{3})`/);
+    if (!outcome.isError) return null;
+
+    if (outcome.kind === "exception") {
       return {
-        message: `Critical Failure [${shape.provider}]: ${msg.substring(0, 60)}...`,
+        message: `Critical Failure [${shape.provider}]: ${(outcome.message ?? "").substring(0, 60)}...`,
         category: "ERROR",
-        statusCode: codeMatch ? codeMatch[1] : 500,
+        statusCode: outcome.code ?? 500,
       };
     }
 
-    const bizError = asRecord(
-      shape.inner.dinError ??
-        asRecord(shape.inner.data).dinError ??
-        shape.payload.error ??
-        asRecord(shape.payload.data).dinError,
-    );
-
-    // Los proveedores ecuatorianos (Interdin/Diners) emiten el error de negocio
-    // con claves en español: `codigo`/`mensaje`/`detalle`. Mirar solo `code`
-    // dejaba pasar como éxito cosas como `codigo: "88" — Transacción negada`.
-    const code = String(bizError.codigo ?? bizError.code ?? "");
-    if (code && !OK_BUSINESS_CODES.has(code)) {
-      const reason =
-        bizError.mensaje ??
-        bizError.message ??
-        bizError.detalle ??
-        "Failed Op.";
+    if (outcome.kind === "business") {
       return {
-        message: `${shape.provider} | Error ${code}: ${reason}`,
+        message: `${shape.provider} | Error ${outcome.code}: ${outcome.message}`,
         category: "ERROR",
-        statusCode: code,
+        statusCode: outcome.code ?? null,
       };
     }
 
-    const status = Number(resolved.statusCode);
-    if (Number.isFinite(status) && status >= 400) {
-      return { ...resolved, category: "ERROR" };
-    }
-
-    return null;
+    return { ...resolved, category: "ERROR" };
   }
 
   // ── Lecturas puntuales ──

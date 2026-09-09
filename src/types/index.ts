@@ -131,7 +131,29 @@ export interface Correlation {
   login?: string;
 }
 
-// --- 5. FINAL EVENT MODEL ---
+// --- 5. OUTCOME ---
+
+/**
+ * Resultado de la operación que el evento representa, resuelto por el parser.
+ * Los mappers integrados siempre lo rellenan; es opcional para que un
+ * integrador pueda construir un `LogEvent` a mano.
+ */
+export interface Outcome {
+  isError: boolean;
+  status?: "OK" | "FAILED" | "REJECTED";
+  /**
+   * Origen del fallo: excepción de transporte, rechazo de negocio del
+   * proveedor, código HTTP, o validación de la petición.
+   */
+  kind?: "exception" | "business" | "http" | "validation";
+  httpStatus?: number;
+  /** Código del proveedor (`dinError.codigo`) o el HTTP cuando no hay otro. */
+  code?: string;
+  message?: string;
+  exception?: RestException;
+}
+
+// --- 6. FINAL EVENT MODEL ---
 
 export interface LogEvent {
   id: string;
@@ -148,4 +170,6 @@ export interface LogEvent {
   ts: number;
   /** Identificadores derivados del log, ya resueltos para el consumidor. */
   correlation: Correlation;
+  /** Resultado de la operación, para no re-derivarlo en la capa visual. */
+  outcome?: Outcome;
 }

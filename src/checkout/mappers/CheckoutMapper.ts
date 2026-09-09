@@ -1,3 +1,4 @@
+import { resolveOutcome } from "@/common/outcome";
 import {
   AppTypes,
   type CheckoutDetails,
@@ -5,6 +6,7 @@ import {
   type LogEvent,
   type LogLevel,
   type NormalizedLogData,
+  type Outcome,
 } from "@/types";
 import {
   buildEventBase,
@@ -100,13 +102,14 @@ export class CheckoutMapper implements LogMapper {
 
     const built = this.buildMessage(ext, isGatewayLog, isCoreApiLog);
 
-    const errorResult = this.handleErrors(
-      data.level,
-      ext.ctx,
-      ext.msgRaw,
-      ext.subType,
-      built,
-    );
+    const outcome = resolveOutcome({
+      context: ext.ctx,
+      payload: ext.ctx,
+      message: ext.msgRaw,
+      subType: ext.subType,
+    });
+
+    const errorResult = this.handleErrors(ext.ctx, ext.msgRaw, outcome, built);
 
     const displayMessage = errorResult.displayMessage ?? built.displayMessage;
     const category = errorResult.category ?? built.category;
@@ -167,6 +170,7 @@ export class CheckoutMapper implements LogMapper {
       appType: AppTypes.CHECKOUT,
       details,
       context: ext.ctx,
+      outcome,
       rawStream: ext.msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
@@ -351,47 +355,45 @@ export class CheckoutMapper implements LogMapper {
 
   // ── Private: error handling ──
 
-  // ponytail: `level === "CRITICAL"` conserva la intención del antiguo
-  // `level === "500"` (nivel numérico de Monolog), pero etiquetar todo log
-  // crítico como error de validación es dudoso. Se revisa en la Fase 5.
   private handleErrors(
-    level: LogLevel,
     ctx: Record<string, unknown>,
     msgRaw: string,
-    subType: string | null,
+    outcome: Outcome,
     built: BuildMessageResult,
   ): {
     displayMessage?: string;
     category?: LogCategory;
     visualLevel?: LogLevel;
   } {
-    const exception = (ctx.exception ?? null) as Record<string, unknown> | null;
-    const isValidationErr =
-      subType === "request_not_valid" ||
-      exception?.reason === "request_not_valid" ||
-      msgRaw.toLowerCase().includes("error validation");
+    if (!outcome.isError) return { category: built.category };
 
-    if (exception && !isValidationErr) {
+    if (outcome.kind === "validation") {
+      const base = msgRaw.toLowerCase().includes("otp")
+        ? "OTP Validation Error"
+        : "Validation Error (Request)";
+      const gateway = ctx.gateway
+        ? ` [${String(ctx.gateway).toUpperCase()}]`
+        : "";
+
       return {
-        displayMessage: `Exception: ${String(exception.message ?? "").substring(0, 80)}...`,
+        displayMessage: `${base}${gateway}`,
         category: "ERROR",
         visualLevel: "ERROR",
       };
     }
 
-    if (isValidationErr || level === "CRITICAL") {
-      let displayMessage = msgRaw.toLowerCase().includes("otp")
-        ? "OTP Validation Error"
-        : "Validation Error (Request)";
-
-      const gatewayName = ctx.gateway
-        ? ` [${String(ctx.gateway).toUpperCase()}]`
-        : "";
-      displayMessage += gatewayName;
-
-      return { displayMessage, category: "ERROR", visualLevel: "ERROR" };
+    if (outcome.kind === "exception") {
+      return {
+        displayMessage: `Exception: ${(outcome.message ?? "").substring(0, 80)}...`,
+        category: "ERROR",
+        visualLevel: "ERROR",
+      };
     }
 
+    // Un rechazo del gateway (`status.status !== "OK"`) queda registrado en
+    // `outcome`, pero Checkout ya lo representa en el mensaje —«Gateway: OTP
+    // Validation [FAILED] (…)»— y su categoría sigue siendo la del transporte.
+    // Alinear eso es alcance de la fase de Checkout.
     return { category: built.category };
   }
 
