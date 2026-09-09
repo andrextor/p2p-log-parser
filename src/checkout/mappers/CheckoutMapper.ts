@@ -363,24 +363,40 @@ export class CheckoutMapper implements LogMapper {
   }
 
   /**
-   * Empareja la ida y la vuelta de una llamada saliente del gateway.
+   * Empareja la ida y la vuelta de una llamada saliente.
    *
-   * `guzzle-logger` emite `HTTP Req` y `HTTP Res` como registros separados; en
-   * una misma invocación comparten `aws_request_id`, así que la ruta los
-   * distingue cuando hay varias llamadas seguidas.
+   * `guzzle-logger` emite la petición y la respuesta como registros separados
+   * que comparten `aws_request_id`; la ruta los distingue cuando hay varias
+   * llamadas seguidas en la misma invocación.
+   *
+   * El rol sale de la **forma del contexto**, no del texto del mensaje: cada
+   * integración lo redacta a su manera —Apple Pay, Google Pay, Click to Pay…—,
+   * así que exigir `HTTP Req` dejaba sin emparejar todo lo que no fuera el
+   * gateway propio. Un registro de Guzzle trae `request` o `response`, nunca
+   * los dos, y eso sí es estable.
    */
   private buildPairing(
     ext: ExtractedContext,
     isGatewayLog: boolean,
     isCoreApiLog: boolean,
   ): { pairKey?: string; pairRole?: LogEvent["pairRole"] } {
-    if (!isGatewayLog && !isCoreApiLog) return {};
-
     const traceId = ext.ctx.aws_request_id;
     if (!traceId) return {};
 
-    const isRequest = ext.msgRaw.includes("HTTP Req");
-    if (!isRequest && !ext.msgRaw.includes("HTTP Res")) return {};
+    const hasRequest = ext.request.url !== undefined;
+    const hasResponse = ext.response.url !== undefined;
+
+    let isRequest: boolean;
+    if (ext.msgRaw.includes("HTTP Req")) isRequest = true;
+    else if (ext.msgRaw.includes("HTTP Res")) isRequest = false;
+    else if (hasResponse) isRequest = false;
+    else if (hasRequest) isRequest = true;
+    else return {};
+
+    // Sin URL no hay forma de separar dos llamadas seguidas bajo la misma
+    // traza, así que solo se empareja lo que el mensaje ya identificaba.
+    if (!hasRequest && !hasResponse && !isGatewayLog && !isCoreApiLog)
+      return {};
 
     const path = ext.requestUrl ? normalizePath(ext.requestUrl) : "";
 
