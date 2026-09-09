@@ -50,12 +50,16 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
+          echo "RAW=$VERSION" >> $GITHUB_OUTPUT
+          echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
 
-      - name: Check if Tag Exists
+      # Se pregunta por npm, no por el tag: taguear antes de mergear dejaba
+      # `git rev-parse` en verde y apagaba la publicacion (fue el caso de v2.0.0).
+      - name: Check if Version Is Published
         if: github.event_name == 'push'
         id: check_tag
         run: |
-          if git rev-parse "${{ steps.pkg_version.outputs.VERSION }}" >/dev/null 2>&1; then
+          if npm view "${{ steps.pkg_version.outputs.NAME }}@${{ steps.pkg_version.outputs.RAW }}" version >/dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
