@@ -114,3 +114,8 @@ Thumbs.db
 *.swp
 *.swo
 docs
+
+# pnpm 10+ lo genera al gestionar los scripts de build de las dependencias.
+# Este repo es de un solo paquete: sin campo `packages:`, el pnpm 9 de CI
+# falla con «packages field missing or empty» en `pnpm store path`.
+pnpm-workspace.yaml
