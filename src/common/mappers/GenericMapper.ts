@@ -1,12 +1,12 @@
+import { resolveOutcome } from "@/common/outcome";
 import {
   type AppType,
   AppTypes,
   type LogEvent,
-  type LogLevel,
   type NormalizedLogData,
   type RestDetails,
 } from "@/types";
-import { buildEventId, extractTimestamp } from "@/utils/mapper";
+import { buildEventBase, extractTimestamp } from "@/utils/mapper";
 import { RAW_STREAM_MAX_LENGTH } from "../constants";
 import type { LogMapper } from "./BaseMapper";
 
@@ -21,30 +21,22 @@ export class GenericMapper implements LogMapper {
     return true;
   }
 
-  isMatch(event: LogEvent, targetId: string): boolean {
-    const details = event.details as RestDetails;
-    const tId = String(targetId).toLowerCase();
-
-    return (
-      String(event.id).toLowerCase() === tId ||
-      String(details?.awsRequestId).toLowerCase() === tId
-    );
-  }
-
-  map(data: NormalizedLogData, rawLine: string, index: number): LogEvent {
+  map(data: NormalizedLogData, rawLine: string, _index: number): LogEvent {
     const ctx = (data.context ?? {}) as Record<string, unknown>;
     const message = String(data.message ?? "Generic Log");
 
     const request = (ctx.request ?? {}) as Record<string, unknown>;
     const response = (ctx.response ?? {}) as Record<string, unknown>;
 
+    const timestamp = extractTimestamp(
+      data as unknown as Record<string, unknown>,
+      rawLine,
+    );
+
     return {
-      id: buildEventId(ctx, index),
-      timestamp: extractTimestamp(
-        data as unknown as Record<string, unknown>,
-        rawLine,
-      ),
-      level: (data.level as LogLevel) ?? "INFO",
+      ...buildEventBase(ctx, timestamp, message, data.extra),
+      timestamp,
+      level: data.level ?? "INFO",
       message,
       category: this.inferBasicCategory(message),
       appType: this.appType,
@@ -59,6 +51,12 @@ export class GenericMapper implements LogMapper {
         source: "BACKEND",
       } as RestDetails,
       context: data.context,
+      outcome: resolveOutcome({
+        context: ctx,
+        payload: ctx,
+        statusCode: (response.status_code ?? null) as number | null,
+        message,
+      }),
       rawStream: rawLine.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }

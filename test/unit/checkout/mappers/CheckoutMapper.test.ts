@@ -9,7 +9,7 @@ describe("CheckoutMapper", () => {
   it("should extract correct displayMessage for Gateway generation", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.886969-05:00",
-      level: "200",
+      level: "INFO",
       message: "[GW_LIB] HTTP Res",
       sourceType: "GRAFANA_CSV",
       context: {
@@ -31,7 +31,7 @@ describe("CheckoutMapper", () => {
   it("should extract exact validation reason for Gateway OTP validation error", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:20:32.067427-05:00",
-      level: "200",
+      level: "INFO",
       message: "[GW_LIB] HTTP Res",
       sourceType: "GRAFANA_CSV",
       context: {
@@ -53,7 +53,7 @@ describe("CheckoutMapper", () => {
   it("should infer Db Update category accurately", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:20:32.073501-05:00",
-      level: "200",
+      level: "INFO",
       message: "Update session state trace: Updating",
       sourceType: "GRAFANA_CSV",
       context: {},
@@ -115,7 +115,7 @@ describe("CheckoutMapper", () => {
   it("should extract correct displayMessage for Gateway interest calculation", () => {
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.886969-05:00",
-      level: "200",
+      level: "INFO",
       message: "[GW_LIB] HTTP Res",
       sourceType: "GRAFANA_CSV",
       context: {
@@ -192,7 +192,7 @@ describe("CheckoutMapper", () => {
 
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.000-05:00",
-      level: "200",
+      level: "INFO",
       message: "placetopay_event",
       sourceType: "GRAFANA_CSV",
       context: { action_method: "entry" },
@@ -216,7 +216,7 @@ describe("CheckoutMapper", () => {
 
     const logData: NormalizedLogData = {
       timestamp: "2025-12-28T22:17:03.000-05:00",
-      level: "200",
+      level: "INFO",
       message: "placetopay_event",
       sourceType: "GRAFANA_CSV",
       context: { action_method: "myCustomAction" },
@@ -272,7 +272,7 @@ describe("CheckoutMapper", () => {
     it("should always set rawTitle to the raw message", () => {
       const logData: NormalizedLogData = {
         timestamp: "2025-12-28T22:17:03.000-05:00",
-        level: "200",
+        level: "INFO",
         message: "Update session state trace: Updating",
         sourceType: "GRAFANA_CSV",
         context: {},
@@ -288,7 +288,7 @@ describe("CheckoutMapper", () => {
     it("should set rawTitle but NOT title for Gateway (GW_LIB) messages", () => {
       const logData: NormalizedLogData = {
         timestamp: "2025-12-28T22:17:03.000-05:00",
-        level: "200",
+        level: "INFO",
         message: "[GW_LIB] HTTP Req",
         sourceType: "GRAFANA_CSV",
         context: {
@@ -308,7 +308,7 @@ describe("CheckoutMapper", () => {
     it("should set rawTitle but NOT title for HTTP Req / HTTP Res messages", () => {
       const logData: NormalizedLogData = {
         timestamp: "2025-12-28T22:17:03.000-05:00",
-        level: "200",
+        level: "INFO",
         message: "HTTP Req",
         sourceType: "GRAFANA_CSV",
         context: {
@@ -326,7 +326,7 @@ describe("CheckoutMapper", () => {
     it("should set rawTitle to undefined when message is empty", () => {
       const logData: NormalizedLogData = {
         timestamp: "2025-12-28T22:17:03.000-05:00",
-        level: "200",
+        level: "INFO",
         message: "",
         sourceType: "GRAFANA_CSV",
         context: {},

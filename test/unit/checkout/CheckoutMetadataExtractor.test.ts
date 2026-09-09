@@ -16,6 +16,8 @@ describe("CheckoutMetadataExtractor", () => {
         details: { sessionId: "123" },
         timestamp: "2024-03-30T10:00:00Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       },
       {
         id: "2",
@@ -26,6 +28,8 @@ describe("CheckoutMetadataExtractor", () => {
         details: { sessionId: "123" },
         timestamp: "2024-03-30T10:00:01Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       },
       {
         id: "3",
@@ -36,6 +40,8 @@ describe("CheckoutMetadataExtractor", () => {
         details: { sessionId: "456" },
         timestamp: "2024-03-30T10:00:02Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       }
     ];
 
@@ -63,6 +69,8 @@ describe("CheckoutMetadataExtractor", () => {
         },
         timestamp: "2024-03-30T10:00:00Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       },
       {
         id: "5",
@@ -82,6 +90,8 @@ describe("CheckoutMetadataExtractor", () => {
         },
         timestamp: "2024-03-30T10:00:01Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       },
       {
         id: "6",
@@ -92,6 +102,8 @@ describe("CheckoutMetadataExtractor", () => {
         details: { sessionId: "456" },
         timestamp: "2024-03-30T10:00:02Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       }
     ];
 
@@ -121,6 +133,8 @@ describe("CheckoutMetadataExtractor", () => {
         },
         timestamp: "2024-03-30T10:00:00Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       },
       {
         id: "8",
@@ -131,6 +145,8 @@ describe("CheckoutMetadataExtractor", () => {
         details: { sessionId: "456" },
         timestamp: "2024-03-30T10:00:02Z",
         level: "INFO",
+        ts: 0,
+        correlation: {},
       }
     ];
 

@@ -10,9 +10,4 @@ export interface LogMapper {
    * Action: Converts the normalized data into a structured event.
    */
   map(data: NormalizedLogData, rawLine: string, index: number): LogEvent;
-
-  /**
-   * Determines if an event matches a target ID for tracing.
-   */
-  isMatch(event: LogEvent, targetId: string): boolean;
 }

@@ -1,16 +1,17 @@
 import {
   CheckoutMetadataExtractor,
   type CheckoutParseMetadata,
+  type CheckoutSessionMetadata,
 } from "@/checkout/metadata/CheckoutMetadataExtractor";
 import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
 import { CheckoutGrafanaJsonParser } from "@/checkout/strategies/CheckoutGrafanaJsonParser";
 import { CheckoutInsightsParser } from "@/checkout/strategies/CheckoutInsightsParser";
-import { CheckoutLocalParser } from "@/checkout/strategies/CheckoutLocalParser";
 import type {
   DomainMetadata,
   MetadataExtractor,
 } from "@/common/metadata/MetadataExtractor";
+import { LaravelLineParser } from "@/common/strategies/LaravelLineParser";
 import type { StrategyMetadata } from "@/common/strategies/LogExtractionStrategy";
 import {
   MicrositesMetadataExtractor,
@@ -35,6 +36,7 @@ import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStr
 import type { RestActionDetail } from "./rest/constants/RestActions";
 import { mergeRestActions } from "./rest/constants/RestActions";
 import { RestMapper } from "./rest/mappers/RestMapper";
+import { RestNewRelicCsvParser } from "./rest/strategies/RestNewRelicCsvParser";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
 
 export interface P2PParserEngineConfig {
@@ -50,6 +52,7 @@ export type ParseMetadata =
 export type {
   DomainMetadata,
   CheckoutParseMetadata,
+  CheckoutSessionMetadata,
   RestParseMetadata,
   MicrositesParseMetadata,
 };
@@ -59,6 +62,64 @@ export interface ParseResult {
   groupedBySession?: Record<string, Record<string, LogEvent[]>>;
   metadata?: ParseMetadata;
   errors: { line: number; reason: string; content: string }[];
+  stats: ParseStats;
+}
+
+/** Resumen del lote, para cabeceras y paneles sin recorrer los eventos. */
+export interface ParseStats {
+  total: number;
+  byApp: Record<string, number>;
+  byCategory: Record<string, number>;
+  byLevel: Record<string, number>;
+  /** Eventos cuyo `outcome` indica fallo. */
+  errorCount: number;
+  /**
+   * Unidades de texto que ninguna estrategia convirtió en evento. Un número
+   * alto suele significar que se eligió la aplicación equivocada, o que el
+   * export trae un formato todavía no soportado. La fila de cabecera de un CSV
+   * cuenta aquí: no produce evento, aunque sí se aprovecha para leer las
+   * columnas por nombre.
+   */
+  unrecognized: number;
+  timespan?: { from: string; to: string; ms: number };
+}
+
+function emptyStats(): ParseStats {
+  return {
+    total: 0,
+    byApp: {},
+    byCategory: {},
+    byLevel: {},
+    errorCount: 0,
+    unrecognized: 0,
+  };
+}
+
+function buildStats(events: LogEvent[], unrecognized: number): ParseStats {
+  const stats = emptyStats();
+  stats.total = events.length;
+  stats.unrecognized = unrecognized;
+
+  for (const event of events) {
+    stats.byApp[event.appType] = (stats.byApp[event.appType] ?? 0) + 1;
+    stats.byCategory[event.category] =
+      (stats.byCategory[event.category] ?? 0) + 1;
+    stats.byLevel[event.level] = (stats.byLevel[event.level] ?? 0) + 1;
+    if (event.outcome?.isError) stats.errorCount++;
+  }
+
+  const dated = events.filter((e) => Number.isFinite(e.ts));
+  const first = dated[0];
+  const last = dated[dated.length - 1];
+  if (first && last) {
+    stats.timespan = {
+      from: first.timestamp,
+      to: last.timestamp,
+      ms: last.ts - first.ts,
+    };
+  }
+
+  return stats;
 }
 
 export class P2PParserEngine {
@@ -72,10 +133,14 @@ export class P2PParserEngine {
       new CheckoutGrafanaJsonParser(),
       new CheckoutInsightsParser(),
       new CheckoutAwsCsvParser(),
-      new CheckoutLocalParser(),
+      new LaravelLineParser(),
     ],
-    [AppTypes.REST]: [new RestNewRelicParser()],
-    [AppTypes.MICROSITES]: [new CheckoutLocalParser()],
+    [AppTypes.REST]: [
+      new RestNewRelicCsvParser(),
+      new RestNewRelicParser(),
+      new LaravelLineParser(),
+    ],
+    [AppTypes.MICROSITES]: [new LaravelLineParser()],
   };
 
   private mappers: Record<AppType, LogMapper>;
@@ -119,11 +184,12 @@ export class P2PParserEngine {
     raw: string,
     activeType: AppType | "ALL" = AppTypes.CHECKOUT,
   ): ParseResult {
-    if (!raw) return { events: [], errors: [] };
+    if (!raw) return { events: [], errors: [], stats: emptyStats() };
 
     const rows = this.sanitizeRaw(raw);
     const events: LogEvent[] = [];
     const errors: ParseResult["errors"] = [];
+    let unrecognized = 0;
 
     const allApps = Object.values(AppTypes) as AppType[];
     const appPriority =
@@ -169,6 +235,8 @@ export class P2PParserEngine {
             }
 
             events.push(mapper.map(inferredData, unit, index));
+          } else {
+            unrecognized++;
           }
         }
       } catch (err) {
@@ -182,8 +250,9 @@ export class P2PParserEngine {
 
     // 3. Chronological sorting guarantees
     const sortedEvents = events.sort((a, b) => {
-      const timeA = new Date(a.timestamp).getTime();
-      const timeB = new Date(b.timestamp).getTime();
+      // Las marcas sin fecha válida se van al final en vez de romper el orden.
+      const timeA = Number.isNaN(a.ts) ? Number.POSITIVE_INFINITY : a.ts;
+      const timeB = Number.isNaN(b.ts) ? Number.POSITIVE_INFINITY : b.ts;
 
       if (timeA === timeB) {
         // Tie-break 1: Use microsecond precision if available
@@ -210,6 +279,8 @@ export class P2PParserEngine {
       return timeA - timeB;
     });
 
+    this.pairExchanges(sortedEvents);
+
     // 4. Session grouping and metadata
     const groupedBySession: Record<string, Record<string, LogEvent[]>> = {};
     const sessionIds = new Set<string>();
@@ -224,11 +295,10 @@ export class P2PParserEngine {
         sessionId = String(event.details.sessionId);
       }
 
-      const eventDate = new Date(event.timestamp);
       // Group by minute: YYYY-MM-DD HH:mm
-      const executionTime = Number.isNaN(eventDate.getTime())
+      const executionTime = Number.isNaN(event.ts)
         ? "unknown_time"
-        : eventDate.toISOString().substring(0, 16).replace("T", " ");
+        : new Date(event.ts).toISOString().substring(0, 16).replace("T", " ");
 
       if (!groupedBySession[sessionId]) {
         groupedBySession[sessionId] = {};
@@ -250,7 +320,53 @@ export class P2PParserEngine {
       groupedBySession,
       metadata,
       errors,
+      stats: buildStats(sortedEvents, unrecognized),
     };
+  }
+
+  /**
+   * Une cada petición con su respuesta y calcula la duración del intercambio.
+   *
+   * Una sola pasada sobre los eventos ya ordenados. Las peticiones abiertas se
+   * guardan en cola por `pairKey` y se consumen en orden de llegada, de modo
+   * que un reintento sobre la misma traza empareja con su propia respuesta y no
+   * con la del intento anterior. Las que se quedan sin respuesta se marcan
+   * `PENDING`: puede ser un fallo, o simplemente que el export está recortado.
+   */
+  private pairExchanges(events: LogEvent[]): void {
+    const open = new Map<string, LogEvent[]>();
+
+    for (const event of events) {
+      if (!event.pairKey) continue;
+
+      if (event.pairRole === "request") {
+        const queue = open.get(event.pairKey);
+        if (queue) queue.push(event);
+        else open.set(event.pairKey, [event]);
+        continue;
+      }
+
+      if (event.pairRole !== "response") continue;
+
+      const request = open.get(event.pairKey)?.shift();
+      if (!request) continue;
+
+      const duration = event.ts - request.ts;
+      if (Number.isFinite(duration) && duration >= 0) {
+        request.durationMs = duration;
+        event.durationMs = duration;
+      }
+    }
+
+    for (const queue of open.values()) {
+      for (const request of queue) {
+        request.outcome = {
+          isError: false,
+          ...request.outcome,
+          status: "PENDING",
+        };
+      }
+    }
   }
 
   private extractMetadata(

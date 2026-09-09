@@ -6,24 +6,14 @@ export interface RestActionDetail {
   source: "BACKEND";
 }
 
+/**
+ * Fragmentos de mensajes de log de la aplicación Laravel (`rest-services`).
+ *
+ * Ojo: estas claves son **texto de mensajes**, no operaciones de SDK. Las
+ * operaciones viven en `RestOperations.ts`; mezclarlas en un solo mapa provocaba
+ * colisiones entre un `operation` y un fragmento de mensaje homónimo.
+ */
 export const DEFAULT_REST_ACTION_MAP: Record<string, RestActionDetail> = {
-  // --- SDK / API Operations ---
-  creditType: {
-    message: "Bin and Installment Query",
-    category: "HTTP_REQ_OUT",
-    source: "BACKEND",
-  },
-  createOTP: {
-    message: "Second Factor Request (OTP)",
-    category: "NOTIFICATION",
-    source: "BACKEND",
-  },
-  authorize: {
-    message: "Transaction Authorization",
-    category: "PAYMENT",
-    source: "BACKEND",
-  },
-  // --- Laravel.log Events (Keyword Detection) ---
   "no bin information": {
     message: "BIN information not found",
     category: "BACKEND_LOG",
@@ -50,4 +40,16 @@ export function mergeRestActions(
   custom: Record<string, RestActionDetail>,
 ): Record<string, RestActionDetail> {
   return { ...DEFAULT_REST_ACTION_MAP, ...custom };
+}
+
+/** Busca el primer fragmento conocido contenido en el mensaje. */
+export function findRestAction(
+  message: string,
+  actionMap: Record<string, RestActionDetail>,
+): RestActionDetail | null {
+  const haystack = message.toLowerCase();
+  for (const [fragment, detail] of Object.entries(actionMap)) {
+    if (haystack.includes(fragment.toLowerCase())) return detail;
+  }
+  return null;
 }

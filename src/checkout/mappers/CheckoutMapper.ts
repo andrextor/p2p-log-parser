@@ -1,3 +1,4 @@
+import { resolveOutcome } from "@/common/outcome";
 import {
   AppTypes,
   type CheckoutDetails,
@@ -5,9 +6,10 @@ import {
   type LogEvent,
   type LogLevel,
   type NormalizedLogData,
+  type Outcome,
 } from "@/types";
 import {
-  buildEventId,
+  buildEventBase,
   extractHttpFromMessage,
   normalizePath,
 } from "@/utils/mapper";
@@ -21,6 +23,7 @@ import {
   type CheckoutActionDetail,
   DEFAULT_CHECKOUT_ACTION_MAP,
 } from "../constants/CheckoutActions";
+import { readTracePhase } from "../constants/CheckoutTracePhases";
 
 interface ExtractedContext {
   ctx: Record<string, unknown>;
@@ -72,41 +75,28 @@ export class CheckoutMapper implements LogMapper {
           ctx.TENANT_DOMAIN.includes("redirection"))) ||
       msg.includes(MARKER.REQUEST_TRACE) ||
       msg.includes(MARKER.PLACETOPAY_EVENT) ||
+      msg.includes(MARKER.PLACETOPAY_LOG) ||
       msg.includes(MARKER.GATEWAY)
     );
   }
 
-  isMatch(event: LogEvent, targetId: string): boolean {
-    const details = event.details as CheckoutDetails;
-    const ctx = (event.context ?? {}) as Record<string, unknown>;
-    const payload = (ctx.payload ?? {}) as Record<string, unknown>;
-    const tId = String(targetId).toLowerCase();
-
-    return (
-      String(event.id).toLowerCase() === tId ||
-      String(details?.sessionId).toLowerCase() === tId ||
-      String(details?.transactionId).toLowerCase() === tId ||
-      String(details?.awsRequestId).toLowerCase() === tId ||
-      String(ctx?.aws_request_id).toLowerCase() === tId ||
-      String(payload?.session_id).toLowerCase() === tId
-    );
-  }
-
-  map(data: NormalizedLogData, _rawLine: string, index: number): LogEvent {
+  map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const ext = this.extractContext(data);
+    const traceParts = readTracePhase(ext.msgRaw);
 
     const isGatewayLog = ext.msgRaw.includes(MARKER.GATEWAY);
     const isCoreApiLog = ext.msgRaw === "HTTP Req" || ext.msgRaw === "HTTP Res";
 
     const built = this.buildMessage(ext, isGatewayLog, isCoreApiLog);
 
-    const errorResult = this.handleErrors(
-      data.level,
-      ext.ctx,
-      ext.msgRaw,
-      ext.subType,
-      built,
-    );
+    const outcome = resolveOutcome({
+      context: ext.ctx,
+      payload: ext.ctx,
+      message: ext.msgRaw,
+      subType: ext.subType,
+    });
+
+    const errorResult = this.handleErrors(ext.ctx, ext.msgRaw, outcome, built);
 
     const displayMessage = errorResult.displayMessage ?? built.displayMessage;
     const category = errorResult.category ?? built.category;
@@ -132,9 +122,12 @@ export class CheckoutMapper implements LogMapper {
       method,
       endpoint,
       url: endpoint || undefined,
-      statusCode: (ext.response.status_code ??
-        ext.ctx.status_code ??
-        (category === "ERROR" ? 500 : 200)) as number | string | null,
+      // Sin código en el log se deja `null`: un 200 inventado se lee como
+      // «respondió correctamente», que es justo lo que no sabemos.
+      statusCode: (ext.response.status_code ?? ext.ctx.status_code ?? null) as
+        | number
+        | string
+        | null,
       sessionId: (ext.ctx.session_id ?? ctxData.session_id ?? "") as
         | string
         | number,
@@ -145,6 +138,8 @@ export class CheckoutMapper implements LogMapper {
         (ext.ctx.payload as Record<string, unknown>)?.aws_request_id ??
         null) as string | null,
       subType: ext.subType,
+      phase: traceParts?.phase,
+      step: traceParts?.step,
       source: built.source,
       provider: built.provider,
       payload: ext.ctx.payload ?? ext.ctx.data ?? ext.ctx,
@@ -159,7 +154,7 @@ export class CheckoutMapper implements LogMapper {
     };
 
     return {
-      id: buildEventId(ext.ctx, index),
+      ...buildEventBase(ext.ctx, data.timestamp, displayMessage, data.extra),
       timestamp: data.timestamp,
       level: (visualLevel ?? data.level ?? "INFO") as LogLevel,
       message: displayMessage,
@@ -167,6 +162,8 @@ export class CheckoutMapper implements LogMapper {
       appType: AppTypes.CHECKOUT,
       details,
       context: ext.ctx,
+      outcome,
+      ...this.buildPairing(ext, isGatewayLog, isCoreApiLog),
       rawStream: ext.msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
@@ -269,11 +266,27 @@ export class CheckoutMapper implements LogMapper {
       return this.buildKnownActionMessage(ext);
     }
 
-    if (ext.msgRaw === MARKER.PLACETOPAY_EVENT && ext.subType) {
+    if (
+      (ext.msgRaw === MARKER.PLACETOPAY_EVENT ||
+        ext.msgRaw === MARKER.PLACETOPAY_LOG) &&
+      ext.subType
+    ) {
       return {
         displayMessage: `Event: ${ext.subType}`,
         category: "BACKEND_LOG",
         source: "BACKEND",
+        provider: null,
+      };
+    }
+
+    // El prefijo `«{sujeto} trace:»` da la categoría de forma determinista;
+    // sin él hay que adivinarla por palabras del mensaje.
+    const trace = readTracePhase(ext.msgRaw);
+    if (trace) {
+      return {
+        displayMessage: ext.msgRaw,
+        category: trace.category,
+        source: this.determineSource(ext.ctx, ext.msgRaw),
         provider: null,
       };
     }
@@ -349,46 +362,75 @@ export class CheckoutMapper implements LogMapper {
     return { displayMessage, category, source, provider: null };
   }
 
+  /**
+   * Empareja la ida y la vuelta de una llamada saliente del gateway.
+   *
+   * `guzzle-logger` emite `HTTP Req` y `HTTP Res` como registros separados; en
+   * una misma invocación comparten `aws_request_id`, así que la ruta los
+   * distingue cuando hay varias llamadas seguidas.
+   */
+  private buildPairing(
+    ext: ExtractedContext,
+    isGatewayLog: boolean,
+    isCoreApiLog: boolean,
+  ): { pairKey?: string; pairRole?: LogEvent["pairRole"] } {
+    if (!isGatewayLog && !isCoreApiLog) return {};
+
+    const traceId = ext.ctx.aws_request_id;
+    if (!traceId) return {};
+
+    const isRequest = ext.msgRaw.includes("HTTP Req");
+    if (!isRequest && !ext.msgRaw.includes("HTTP Res")) return {};
+
+    const path = ext.requestUrl ? normalizePath(ext.requestUrl) : "";
+
+    return {
+      pairKey: `${String(traceId)}|${path}`,
+      pairRole: isRequest ? "request" : "response",
+    };
+  }
+
   // ── Private: error handling ──
 
   private handleErrors(
-    level: string,
     ctx: Record<string, unknown>,
     msgRaw: string,
-    subType: string | null,
+    outcome: Outcome,
     built: BuildMessageResult,
   ): {
     displayMessage?: string;
     category?: LogCategory;
     visualLevel?: LogLevel;
   } {
-    const exception = (ctx.exception ?? null) as Record<string, unknown> | null;
-    const isValidationErr =
-      subType === "request_not_valid" ||
-      exception?.reason === "request_not_valid" ||
-      msgRaw.toLowerCase().includes("error validation");
+    if (!outcome.isError) return { category: built.category };
 
-    if (exception && !isValidationErr) {
+    if (outcome.kind === "validation") {
+      const base = msgRaw.toLowerCase().includes("otp")
+        ? "OTP Validation Error"
+        : "Validation Error (Request)";
+      const gateway = ctx.gateway
+        ? ` [${String(ctx.gateway).toUpperCase()}]`
+        : "";
+
       return {
-        displayMessage: `Exception: ${String(exception.message ?? "").substring(0, 80)}...`,
+        displayMessage: `${base}${gateway}`,
         category: "ERROR",
         visualLevel: "ERROR",
       };
     }
 
-    if (isValidationErr || level === "500") {
-      let displayMessage = msgRaw.toLowerCase().includes("otp")
-        ? "OTP Validation Error"
-        : "Validation Error (Request)";
-
-      const gatewayName = ctx.gateway
-        ? ` [${String(ctx.gateway).toUpperCase()}]`
-        : "";
-      displayMessage += gatewayName;
-
-      return { displayMessage, category: "ERROR", visualLevel: "ERROR" };
+    if (outcome.kind === "exception") {
+      return {
+        displayMessage: `Exception: ${(outcome.message ?? "").substring(0, 80)}...`,
+        category: "ERROR",
+        visualLevel: "ERROR",
+      };
     }
 
+    // Un rechazo del gateway (`status.status !== "OK"`) queda registrado en
+    // `outcome`, pero Checkout ya lo representa en el mensaje —«Gateway: OTP
+    // Validation [FAILED] (…)»— y su categoría sigue siendo la del transporte.
+    // Alinear eso es alcance de la fase de Checkout.
     return { category: built.category };
   }
 

@@ -78,7 +78,9 @@ export class CheckoutMetadataExtractor
 
     this.applyFunnelTypeDefaults(sessionMap, sessionSteps);
 
-    if (sessionMap.size < 2) return undefined;
+    // Antes hacían falta dos sesiones para devolver metadata, justo lo
+    // contrario del caso más común: depurar un pago concreto.
+    if (sessionMap.size === 0) return undefined;
 
     return {
       totalEvents: events.length,
