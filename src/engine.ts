@@ -1,4 +1,5 @@
 import {
+  type CheckoutFunnelSteps,
   CheckoutMetadataExtractor,
   type CheckoutParseMetadata,
   type CheckoutSessionMetadata,
@@ -53,6 +54,7 @@ export type {
   DomainMetadata,
   CheckoutParseMetadata,
   CheckoutSessionMetadata,
+  CheckoutFunnelSteps,
   RestParseMetadata,
   MicrositesParseMetadata,
 };
