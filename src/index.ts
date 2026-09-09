@@ -25,10 +25,16 @@ export type { StrategyMetadata } from "./common/strategies/LogExtractionStrategy
 // Mapper interfaces (for custom mappers)
 export type { LogMapper } from "./common/mappers/BaseMapper";
 
+// Strategies reusable by integrators
+export { LaravelLineParser } from "./common/strategies/LaravelLineParser";
+
 // Utility functions (for custom mappers/strategies)
 export {
+  buildEventBase,
   buildEventId,
   extractTimestamp,
   normalizePath,
   extractHttpFromMessage,
 } from "./utils/mapper";
+export { buildCorrelation } from "./utils/correlation";
+export { toEpochMs, DEFAULT_TZ_OFFSET } from "./utils/time";

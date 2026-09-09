@@ -6,11 +6,11 @@ import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser
 import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
 import { CheckoutGrafanaJsonParser } from "@/checkout/strategies/CheckoutGrafanaJsonParser";
 import { CheckoutInsightsParser } from "@/checkout/strategies/CheckoutInsightsParser";
-import { CheckoutLocalParser } from "@/checkout/strategies/CheckoutLocalParser";
 import type {
   DomainMetadata,
   MetadataExtractor,
 } from "@/common/metadata/MetadataExtractor";
+import { LaravelLineParser } from "@/common/strategies/LaravelLineParser";
 import type { StrategyMetadata } from "@/common/strategies/LogExtractionStrategy";
 import {
   MicrositesMetadataExtractor,
@@ -72,10 +72,10 @@ export class P2PParserEngine {
       new CheckoutGrafanaJsonParser(),
       new CheckoutInsightsParser(),
       new CheckoutAwsCsvParser(),
-      new CheckoutLocalParser(),
+      new LaravelLineParser(),
     ],
     [AppTypes.REST]: [new RestNewRelicParser()],
-    [AppTypes.MICROSITES]: [new CheckoutLocalParser()],
+    [AppTypes.MICROSITES]: [new LaravelLineParser()],
   };
 
   private mappers: Record<AppType, LogMapper>;
@@ -182,8 +182,9 @@ export class P2PParserEngine {
 
     // 3. Chronological sorting guarantees
     const sortedEvents = events.sort((a, b) => {
-      const timeA = new Date(a.timestamp).getTime();
-      const timeB = new Date(b.timestamp).getTime();
+      // Las marcas sin fecha válida se van al final en vez de romper el orden.
+      const timeA = Number.isNaN(a.ts) ? Number.POSITIVE_INFINITY : a.ts;
+      const timeB = Number.isNaN(b.ts) ? Number.POSITIVE_INFINITY : b.ts;
 
       if (timeA === timeB) {
         // Tie-break 1: Use microsecond precision if available
@@ -224,11 +225,10 @@ export class P2PParserEngine {
         sessionId = String(event.details.sessionId);
       }
 
-      const eventDate = new Date(event.timestamp);
       // Group by minute: YYYY-MM-DD HH:mm
-      const executionTime = Number.isNaN(eventDate.getTime())
+      const executionTime = Number.isNaN(event.ts)
         ? "unknown_time"
-        : eventDate.toISOString().substring(0, 16).replace("T", " ");
+        : new Date(event.ts).toISOString().substring(0, 16).replace("T", " ");
 
       if (!groupedBySession[sessionId]) {
         groupedBySession[sessionId] = {};

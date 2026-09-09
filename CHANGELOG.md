@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-09
+
+Reescritura del modelo de evento para que el parser entregue la información ya
+derivada y los consumidores visuales no tengan que recalcularla.
+
+### Fase 1 — Núcleo: tiempo, líneas Laravel y correlación
+
+#### Added
+- **`LogEvent.ts`**: epoch ms UTC ya resuelto. El consumidor ordena y agrupa sin volver a parsear `timestamp`.
+- **`LogEvent.correlation`**: `traceId`, `sessionId`, `transactionId`, `placetopayId`, `reference`, `internalReference`, `provider`, `operation`, `tenant`, `tenantId`, `siteId`, `login`, extraídos según el contrato de los emisores (no por heurística).
+- **`LaravelLineParser`** (`src/common/strategies/`): parser de líneas Monolog compartido por las tres apps. Expone `channel` (pista de proveedor) y `extra` por separado.
+- **`toEpochMs`**, **`buildCorrelation`**, **`buildEventBase`** exportados para mappers personalizados.
+
+#### Fixed
+- **Marcas de tiempo no deterministas**: `2025-12-28 22:14:01` (sin offset) se interpretaba en la zona horaria de la máquina. Ahora se fija a `DEFAULT_TZ_OFFSET` (`-05:00`, lo que emite producción).
+- **Offsets recortados a horas**: `2025-12-28T22:14:01.362-05` daba `NaN` en `Date.parse`; ahora se normaliza.
+- **Niveles Monolog numéricos**: sin `level_name`, el nivel llegaba como la cadena `"200"`. Se mapean 100–600 a `LogLevel`, y se colapsan los alias PSR-3 (`NOTICE`, `ALERT`, `EMERGENCY`).
+- **`context` y `extra` fusionados**: el parser de líneas Laravel mezclaba ambos bloques de Monolog con `Object.assign`, de modo que campos como `extra.tenantId` aparecían como contexto de aplicación.
+- **Ids inestables**: `buildEventId` usaba la posición de la línea en el fichero, así que el mismo log recibía ids distintos según el recorte del export. Ahora deriva de su contenido.
+- **Orden con fechas inválidas**: el comparador devolvía `NaN`; ahora esos eventos van al final.
+
+### Changed (rupturas)
+- `NormalizedLogData.level` pasa de `string` a `LogLevel`.
+- `buildEventId(ctx, index)` → `buildEventId(ctx, seed)`.
+- `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
+- `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
+
 ## [1.3.0] - 2026-05-17
 
 ### Changed

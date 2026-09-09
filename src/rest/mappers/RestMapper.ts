@@ -4,11 +4,10 @@ import {
   AppTypes,
   type LogCategory,
   type LogEvent,
-  type LogLevel,
   type NormalizedLogData,
   type RestDetails,
 } from "@/types";
-import { buildEventId } from "@/utils/mapper";
+import { buildEventBase } from "@/utils/mapper";
 import {
   DEFAULT_REST_ACTION_MAP,
   type RestActionDetail,
@@ -93,7 +92,7 @@ export class RestMapper implements LogMapper {
     );
   }
 
-  map(data: NormalizedLogData, _rawLine: string, index: number): LogEvent {
+  map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const msgRaw = data.message ?? "";
     const nrContext = (data.context ?? {}) as Record<string, unknown>;
 
@@ -174,11 +173,13 @@ export class RestMapper implements LogMapper {
       isLaravel: isLaravelLog,
     };
 
+    const message = displayMessage || "Trace event";
+
     return {
-      id: buildEventId(nrContext, index),
+      ...buildEventBase(nrContext, data.timestamp, message, data.extra),
       timestamp: data.timestamp,
-      level: (isError ? "ERROR" : data.level) as LogLevel,
-      message: displayMessage || "Trace event",
+      level: isError ? "ERROR" : data.level,
+      message,
       category,
       appType: AppTypes.REST,
       details,

@@ -16,11 +16,17 @@ export const AppNames: Record<AppType, string> = {
 
 // --- 2. RAW DATA STRUCTURES (Parsers) ---
 
+export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+
 export interface NormalizedLogData {
   timestamp: string;
-  level: string;
+  level: LogLevel;
   message: string;
   context: Record<string, unknown>;
+  /** Bloque `extra` de Monolog, que NO debe fusionarse con `context`. */
+  extra?: Record<string, unknown>;
+  /** Canal Monolog (`production`, `interdin`, `http`…): pista de proveedor. */
+  channel?: string;
   sourceType:
     | "AWS_CSV"
     | "LARAVEL_LOCAL"
@@ -28,8 +34,6 @@ export interface NormalizedLogData {
     | "GRAFANA_CSV"
     | "GRAFANA_JSON";
 }
-
-export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 
 export type LogCategory =
   | "HTTP_REQ_OUT"
@@ -85,7 +89,30 @@ export interface MicrositesDetails extends BaseDetails {
 
 export type AppLogDetails = CheckoutDetails | RestDetails | MicrositesDetails;
 
-// --- 4. FINAL EVENT MODEL ---
+// --- 4. CORRELATION ---
+
+/**
+ * Identificadores que permiten seguir un mismo flujo entre eventos y apps.
+ * Todos los campos son opcionales: se rellenan solo cuando el log los trae.
+ */
+export interface Correlation {
+  /** Id de traza: `aws_request_id`, id de Atropos, `messageId` o `requestId`. */
+  traceId?: string;
+  sessionId?: string;
+  transactionId?: string;
+  placetopayId?: string;
+  reference?: string;
+  internalReference?: string;
+  provider?: string;
+  operation?: string;
+  /** `TENANT_DOMAIN`, p.ej. `checkout.placetopay.ec`. */
+  tenant?: string;
+  tenantId?: string;
+  siteId?: string;
+  login?: string;
+}
+
+// --- 5. FINAL EVENT MODEL ---
 
 export interface LogEvent {
   id: string;
@@ -97,4 +124,9 @@ export interface LogEvent {
   details: AppLogDetails;
   context: unknown;
   rawStream?: string;
+
+  /** Epoch ms UTC. Permite ordenar y agrupar sin volver a parsear `timestamp`. */
+  ts: number;
+  /** Identificadores derivados del log, ya resueltos para el consumidor. */
+  correlation: Correlation;
 }

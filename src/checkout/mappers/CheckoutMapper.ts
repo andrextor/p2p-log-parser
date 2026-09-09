@@ -7,7 +7,7 @@ import {
   type NormalizedLogData,
 } from "@/types";
 import {
-  buildEventId,
+  buildEventBase,
   extractHttpFromMessage,
   normalizePath,
 } from "@/utils/mapper";
@@ -92,7 +92,7 @@ export class CheckoutMapper implements LogMapper {
     );
   }
 
-  map(data: NormalizedLogData, _rawLine: string, index: number): LogEvent {
+  map(data: NormalizedLogData, _rawLine: string, _index: number): LogEvent {
     const ext = this.extractContext(data);
 
     const isGatewayLog = ext.msgRaw.includes(MARKER.GATEWAY);
@@ -159,7 +159,7 @@ export class CheckoutMapper implements LogMapper {
     };
 
     return {
-      id: buildEventId(ext.ctx, index),
+      ...buildEventBase(ext.ctx, data.timestamp, displayMessage, data.extra),
       timestamp: data.timestamp,
       level: (visualLevel ?? data.level ?? "INFO") as LogLevel,
       message: displayMessage,
@@ -351,8 +351,11 @@ export class CheckoutMapper implements LogMapper {
 
   // ── Private: error handling ──
 
+  // ponytail: `level === "CRITICAL"` conserva la intención del antiguo
+  // `level === "500"` (nivel numérico de Monolog), pero etiquetar todo log
+  // crítico como error de validación es dudoso. Se revisa en la Fase 5.
   private handleErrors(
-    level: string,
+    level: LogLevel,
     ctx: Record<string, unknown>,
     msgRaw: string,
     subType: string | null,
@@ -376,7 +379,7 @@ export class CheckoutMapper implements LogMapper {
       };
     }
 
-    if (isValidationErr || level === "500") {
+    if (isValidationErr || level === "CRITICAL") {
       let displayMessage = msgRaw.toLowerCase().includes("otp")
         ? "OTP Validation Error"
         : "Validation Error (Request)";
