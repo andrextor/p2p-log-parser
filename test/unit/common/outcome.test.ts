@@ -79,6 +79,7 @@ describe("resolveOutcome", () => {
       kind: "http",
       httpStatus: 400,
       code: "400",
+      message: "HTTP 400",
     });
     expect(resolveOutcome({ context: {}, statusCode: 200 })).toMatchObject({
       isError: false,

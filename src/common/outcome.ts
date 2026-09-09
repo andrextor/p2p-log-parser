@@ -151,6 +151,7 @@ export function resolveOutcome(input: OutcomeInput): Outcome {
       kind: "http",
       httpStatus,
       code: String(httpStatus),
+      message: `HTTP ${httpStatus}`,
     };
   }
 

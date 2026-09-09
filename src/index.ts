@@ -7,6 +7,7 @@ export type {
   ParseMetadata,
   DomainMetadata,
   CheckoutParseMetadata,
+  CheckoutSessionMetadata,
   RestParseMetadata,
   MicrositesParseMetadata,
 } from "./engine";

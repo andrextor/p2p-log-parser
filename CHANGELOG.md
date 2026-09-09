@@ -32,6 +32,22 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 8 — Consumo en `log-trace-p2p`
+
+La v2 se estrena en el visualizador. El cambio allí es **−259 / +108 líneas**:
+casi todo lo que se borra son rodeos que existían porque la librería no
+entregaba el dato.
+
+- `LogUIHelper.isMatch` era una lista de rutas escrita a mano (`details.sessionId`, `ctx.payload.session_id`, `details.payload.id`…) que había que mantener en paralelo al parser. Pasa a ser `matchEvent`.
+- `RestBody.vue` volvía a recorrer el payload buscando `dinError` —con `codigo` en español, que la librería no leía—. Ahora pinta `log.outcome`.
+- `RestLogCard.vue` decidía si algo había fallado combinando nivel, categoría y `statusCode`. Ahora es `outcome.isError`, que además detecta el rechazo del proveedor que llega como INFO.
+- `logStore.ts` forzaba `event.appType` porque las líneas Laravel salían mal clasificadas, marcaba `details.source = "FRONTEND"` a mano, y extraía el id de sesión probando seis rutas distintas. Los tres rodeos desaparecen.
+- `shared/types/base.ts` redeclaraba los tipos del dominio, y su `RestParseMetadata` ya no coincidía con la que la librería emitía. Ahora los reexporta.
+
+#### Added
+- `Outcome` de tipo `http` lleva mensaje propio (`HTTP 400`) en vez de dejar que el consumidor invente uno.
+- `CheckoutSessionMetadata` se exporta: el consumidor lo necesita para recorrer `metadata.sessions`.
+
 ### Empaquetado
 
 #### Fixed

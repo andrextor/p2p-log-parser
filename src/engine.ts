@@ -1,6 +1,7 @@
 import {
   CheckoutMetadataExtractor,
   type CheckoutParseMetadata,
+  type CheckoutSessionMetadata,
 } from "@/checkout/metadata/CheckoutMetadataExtractor";
 import { CheckoutAwsCsvParser } from "@/checkout/strategies/CheckoutAwsCsvParser";
 import { CheckoutGrafanaCsvParser } from "@/checkout/strategies/CheckoutGrafanaCsvParser";
@@ -51,6 +52,7 @@ export type ParseMetadata =
 export type {
   DomainMetadata,
   CheckoutParseMetadata,
+  CheckoutSessionMetadata,
   RestParseMetadata,
   MicrositesParseMetadata,
 };
