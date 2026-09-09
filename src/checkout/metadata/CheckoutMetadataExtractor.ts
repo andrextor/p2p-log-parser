@@ -4,28 +4,47 @@ import type {
 } from "@/common/metadata/MetadataExtractor";
 import { AppTypes, type CheckoutDetails, type LogEvent } from "@/types";
 
+/**
+ * Los hitos del flujo de checkout, en el orden en que ocurren. Sustituye al
+ * antiguo `flags {otp, threeDS, interest}`, que era este mismo objeto recortado
+ * a tres campos: los consumidores acababan recalculando los otros cinco a mano
+ * con `endpoint.includes(...)`, que es justo lo que el parser existe para
+ * evitar.
+ */
+export interface CheckoutFunnelSteps {
+  created: boolean;
+  entry: boolean;
+  show: boolean;
+  information: boolean;
+  interest: boolean;
+  otp: boolean;
+  threeDS: boolean;
+  process: boolean;
+}
+
 export interface CheckoutSessionMetadata {
   sessionId: string;
-  sessionType: "PAYMENT" | "SUBSCRIPTION" | "AUTOPAY" | "UNKNOWN";
+  sessionType: "PAYMENT" | "COLLECT" | "SUBSCRIPTION" | "AUTOPAY" | "UNKNOWN";
   finalState: string;
   hasSuccessfulTransaction: boolean;
   reference?: string;
-  flags: {
-    otp: boolean;
-    threeDS: boolean;
-    interest: boolean;
+  steps: CheckoutFunnelSteps;
+  /** Epoch ms del primer evento de cada hito. Ausente si el hito no ocurrió. */
+  timings: {
+    created?: number;
+    entry?: number;
+    show?: number;
+  };
+  /** Derivadas de `timings`, en ms. Ausentes si falta alguno de los extremos. */
+  durations: {
+    timeToEntry?: number;
+    timeToShow?: number;
   };
 }
 
 export interface CheckoutParseMetadata extends DomainMetadata {
   totalSessions: number;
   sessions: CheckoutSessionMetadata[];
-}
-
-interface FunnelSteps {
-  entry: boolean;
-  show: boolean;
-  process: boolean;
 }
 
 export class CheckoutMetadataExtractor
@@ -35,7 +54,6 @@ export class CheckoutMetadataExtractor
 
   extract(events: LogEvent[]): CheckoutParseMetadata | undefined {
     const sessionMap = new Map<string, CheckoutSessionMetadata>();
-    const sessionSteps = new Map<string, FunnelSteps>();
 
     for (const event of events) {
       if (event.appType !== AppTypes.CHECKOUT) continue;
@@ -48,12 +66,10 @@ export class CheckoutMetadataExtractor
 
       if (!sessionMap.has(sid)) {
         sessionMap.set(sid, this.createEmptySession(sid));
-        sessionSteps.set(sid, { entry: false, show: false, process: false });
       }
 
       const row = sessionMap.get(sid);
-      const steps = sessionSteps.get(sid);
-      if (!row || !steps) continue;
+      if (!row) continue;
 
       try {
         const endpoint = String(details.endpoint ?? "").toLowerCase();
@@ -66,8 +82,7 @@ export class CheckoutMetadataExtractor
         const msg = String(event.message ?? "").toLowerCase();
         const title = String(details.title ?? "").toLowerCase();
 
-        this.detectFunnelSteps(steps, action, subType, endpoint);
-        this.detectFlags(row, endpoint, action, msg);
+        this.detectFunnelSteps(row, action, subType, endpoint, msg, event.ts);
         this.detectFinalState(row, msg, title, payload);
         this.detectTransactionStatus(row, msg, title, payload);
         this.detectSessionType(row, payload);
@@ -76,7 +91,7 @@ export class CheckoutMetadataExtractor
       }
     }
 
-    this.applyFunnelTypeDefaults(sessionMap, sessionSteps);
+    this.applyFunnelTypeDefaults(sessionMap);
 
     // Antes hacían falta dos sesiones para devolver metadata, justo lo
     // contrario del caso más común: depurar un pago concreto.
@@ -97,23 +112,69 @@ export class CheckoutMetadataExtractor
       sessionType: "UNKNOWN",
       finalState: "UNDEFINED",
       hasSuccessfulTransaction: false,
-      flags: { otp: false, threeDS: false, interest: false },
+      steps: {
+        created: false,
+        entry: false,
+        show: false,
+        information: false,
+        interest: false,
+        otp: false,
+        threeDS: false,
+        process: false,
+      },
+      timings: {},
+      durations: {},
     };
   }
 
   // ── Private: funnel step detection ──
 
   private detectFunnelSteps(
-    steps: FunnelSteps,
+    row: CheckoutSessionMetadata,
     action: string,
     subType: string,
     endpoint: string,
+    msg: string,
+    ts?: number,
   ): void {
+    const { steps } = row;
+
+    // Solo los tres hitos que abren el flujo se fechan: son los extremos de las
+    // duraciones que interesan. El resto se responde con un sí/no.
+    const mark = (key: "created" | "entry" | "show") => {
+      steps[key] = true;
+      if (ts !== undefined && row.timings[key] === undefined) {
+        row.timings[key] = ts;
+      }
+    };
+
+    if (subType === "checkout.session.created" || action === "createsession") {
+      mark("created");
+    }
     if (action === "entry" || subType === "checkout.session.entry") {
-      steps.entry = true;
+      mark("entry");
     }
     if (action === "show") {
-      steps.show = true;
+      mark("show");
+    }
+    if (endpoint.includes("/information")) {
+      steps.information = true;
+    }
+    if (endpoint.includes("/interest")) {
+      steps.interest = true;
+    }
+    if (
+      endpoint.includes("/otp/generate") ||
+      endpoint.includes("/otp/validate") ||
+      endpoint.includes("/wallet/otp") ||
+      action === "checkotp" ||
+      action === "walletotpgenerate" ||
+      action === "walletotpvalidate"
+    ) {
+      steps.otp = true;
+    }
+    if (endpoint.includes("/mpi/lookup") || msg.includes("3ds")) {
+      steps.threeDS = true;
     }
     if (
       action === "process" ||
@@ -121,29 +182,6 @@ export class CheckoutMetadataExtractor
       endpoint.includes("/collect")
     ) {
       steps.process = true;
-    }
-  }
-
-  // ── Private: feature flags ──
-
-  private detectFlags(
-    row: CheckoutSessionMetadata,
-    endpoint: string,
-    action: string,
-    msg: string,
-  ): void {
-    if (
-      endpoint.includes("/otp/generate") ||
-      endpoint.includes("/otp/validate") ||
-      action === "checkotp"
-    ) {
-      row.flags.otp = true;
-    }
-    if (endpoint.includes("/mpi/lookup") || msg.includes("3ds")) {
-      row.flags.threeDS = true;
-    }
-    if (endpoint.includes("/interest")) {
-      row.flags.interest = true;
     }
   }
 
@@ -220,16 +258,25 @@ export class CheckoutMetadataExtractor
 
   private applyFunnelTypeDefaults(
     sessionMap: Map<string, CheckoutSessionMetadata>,
-    sessionSteps: Map<string, FunnelSteps>,
   ): void {
-    for (const sid of sessionMap.keys()) {
-      const row = sessionMap.get(sid);
-      const steps = sessionSteps.get(sid);
-      if (!row || !steps) continue;
+    for (const row of sessionMap.values()) {
+      const { steps, timings } = row;
 
       if (row.sessionType === "UNKNOWN") {
-        if (steps.entry || steps.show || steps.process) {
+        if (steps.entry || steps.show) {
           row.sessionType = "PAYMENT";
+        } else if (steps.process) {
+          // Cobro sin paso por la SPA: nadie entró ni vio nada.
+          row.sessionType = "COLLECT";
+        }
+      }
+
+      if (timings.created !== undefined) {
+        if (timings.entry !== undefined) {
+          row.durations.timeToEntry = timings.entry - timings.created;
+        }
+        if (timings.show !== undefined) {
+          row.durations.timeToShow = timings.show - timings.created;
         }
       }
     }

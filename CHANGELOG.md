@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-09
+
+### Changed
+- **`CheckoutSessionMetadata.flags` → `steps`.** El antiguo `flags {otp, threeDS,
+  interest}` era este mismo objeto recortado a tres campos, así que los
+  consumidores acababan deduciendo los otros cinco hitos a mano con
+  `endpoint.includes("/process")` y `msg.includes("3DS")` — lógica en paralelo
+  al parser, que es lo que la v2 vino a eliminar. Ahora `steps` publica los ocho:
+  `created`, `entry`, `show`, `information`, `interest`, `otp`, `threeDS`,
+  `process`.
+- **`sessionType` admite `COLLECT`**: una sesión que procesa sin pasar por la
+  SPA (ni `entry` ni `show`) es un cobro, no un pago.
+
+### Added
+- **`CheckoutSessionMetadata.timings`**: epoch ms del primer evento de `created`,
+  `entry` y `show`. Un segundo `entry` no mueve la marca.
+- **`CheckoutSessionMetadata.durations`**: `timeToEntry` y `timeToShow` en ms,
+  derivadas de `timings`. Ausentes si falta alguno de los extremos — antes el
+  consumidor formateaba un `0` que no significaba nada.
+- **`CheckoutFunnelSteps`** exportado, para tipar el embudo sin redeclararlo.
+
+### Fixed
+- `pnpm publish` ya no se condiciona a que el tag no exista: pregunta a npm. Con
+  `fetch-depth: 0` el tag viaja en el clon, así que taguear antes de mergear
+  dejaba la publicación apagada de forma permanente.
+
 ## [2.0.0] - 2026-09-09
 
 Reescritura del modelo de evento para que el parser entregue la información ya
