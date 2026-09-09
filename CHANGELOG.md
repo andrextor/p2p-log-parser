@@ -32,6 +32,12 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Empaquetado
+
+#### Fixed
+- **El bundle CommonJS no resolvía**: `package.json` declara `dist/p2p-log-parser.cjs`, pero el nombre por defecto de Vite para ese formato es `p2p-log-parser.umd.cjs`. Cualquier consumidor que hiciera `require()` del paquete recibía un módulo inexistente. Viene de antes de la v2.
+- **Se publicaban las declaraciones de los tests**: `vite-plugin-dts` recorría `test/` además de `src/`.
+
 ### Fase 7 — Superficie pública
 
 #### Added
