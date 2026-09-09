@@ -85,9 +85,15 @@ export class CheckoutMapper implements LogMapper {
     const traceParts = readTracePhase(ext.msgRaw);
 
     const isGatewayLog = ext.msgRaw.includes(MARKER.GATEWAY);
-    const isCoreApiLog = ext.msgRaw === "HTTP Req" || ext.msgRaw === "HTTP Res";
+    // `guzzle-logger` emite `HTTP Req` / `HTTP Res` con un prefijo por
+    // integración (`APPLE_PAY-SDK: `, `GOOGLE_PAY-SDK: `…) y sin prefijo para
+    // el Core API. Comparar por igualdad dejaba fuera todo lo que no fuera el
+    // Core API, que se quedaba sin título, sin proveedor y con la respuesta
+    // clasificada como log de backend.
+    const isHttpExchangeLog =
+      ext.msgRaw.includes("HTTP Req") || ext.msgRaw.includes("HTTP Res");
 
-    const built = this.buildMessage(ext, isGatewayLog, isCoreApiLog);
+    const built = this.buildMessage(ext, isGatewayLog, isHttpExchangeLog);
 
     const outcome = resolveOutcome({
       context: ext.ctx,
@@ -107,7 +113,7 @@ export class CheckoutMapper implements LogMapper {
       ext.path,
       ext.ctx,
       isGatewayLog,
-      isCoreApiLog,
+      isHttpExchangeLog,
     );
 
     const method = String(
@@ -163,7 +169,7 @@ export class CheckoutMapper implements LogMapper {
       details,
       context: ext.ctx,
       outcome,
-      ...this.buildPairing(ext, isGatewayLog, isCoreApiLog),
+      ...this.buildPairing(ext, isGatewayLog, isHttpExchangeLog),
       rawStream: ext.msgRaw.slice(0, RAW_STREAM_MAX_LENGTH),
     };
   }
@@ -213,14 +219,14 @@ export class CheckoutMapper implements LogMapper {
   private buildMessage(
     ext: ExtractedContext,
     isGatewayLog: boolean,
-    isCoreApiLog: boolean,
+    isHttpExchangeLog: boolean,
   ): BuildMessageResult {
     if (isGatewayLog) {
       return this.buildGatewayMessage(ext);
     }
 
-    if (isCoreApiLog) {
-      return this.buildCoreApiMessage(ext);
+    if (isHttpExchangeLog) {
+      return this.buildHttpExchangeMessage(ext);
     }
 
     if (
@@ -371,7 +377,7 @@ export class CheckoutMapper implements LogMapper {
   private buildPairing(
     ext: ExtractedContext,
     isGatewayLog: boolean,
-    isCoreApiLog: boolean,
+    isHttpExchangeLog: boolean,
   ): { pairKey?: string; pairRole?: LogEvent["pairRole"] } {
     const traceId = ext.ctx.aws_request_id;
     if (!traceId) return {};
@@ -388,7 +394,7 @@ export class CheckoutMapper implements LogMapper {
 
     // Sin URL no hay forma de separar dos llamadas seguidas bajo la misma
     // traza, así que solo se empareja lo que el mensaje ya identificaba.
-    if (!hasRequest && !hasResponse && !isGatewayLog && !isCoreApiLog)
+    if (!hasRequest && !hasResponse && !isGatewayLog && !isHttpExchangeLog)
       return {};
 
     const path = ext.requestUrl ? normalizePath(ext.requestUrl) : "";
@@ -400,13 +406,15 @@ export class CheckoutMapper implements LogMapper {
   }
 
   /**
-   * Los registros del Core API llegan con el mensaje `HTTP Req` / `HTTP Res` a
-   * secas, que no dice nada en una línea de tiempo. Solo `/core/tokenize` tenía
-   * nombre propio; el resto de rutas se caía al genérico y se quedaba sin
-   * título, sin proveedor y con la respuesta clasificada como log de backend.
+   * Un intercambio de `guzzle-logger` llega con el mensaje `HTTP Req` /
+   * `HTTP Res`, que no dice nada en una línea de tiempo. Solo `/core/tokenize`
+   * tenía nombre propio; el resto —incluidas las llamadas de Apple Pay, Google
+   * Pay o Click to Pay— se caía al genérico y se quedaba sin título, sin
+   * proveedor y con la respuesta clasificada como log de backend.
    */
-  private buildCoreApiMessage(ext: ExtractedContext): BuildMessageResult {
-    const isRequest = ext.msgRaw.includes("Req");
+  private buildHttpExchangeMessage(ext: ExtractedContext): BuildMessageResult {
+    const isRequest = ext.msgRaw.includes("HTTP Req");
+    const provider = this.readExchangeProvider(ext);
 
     // La tokenización conserva su redacción: es lo que más se depura.
     if (ext.requestUrl.includes("/core/tokenize")) {
@@ -432,11 +440,25 @@ export class CheckoutMapper implements LogMapper {
     const suffix = detail.filter(Boolean).join(" ");
 
     return {
-      displayMessage: `Core API | ${suffix || (isRequest ? "Request" : "Response")}`,
+      displayMessage: `${provider} | ${suffix || (isRequest ? "Request" : "Response")}`,
       category: isRequest ? "HTTP_REQ_OUT" : "HTTP_RES",
       source: "BACKEND",
-      provider: "CORE_API",
+      provider,
     };
+  }
+
+  /**
+   * El proveedor de un intercambio de Guzzle. El prefijo del mensaje lo nombra
+   * (`APPLE_PAY-SDK: HTTP Req`); sin prefijo es el Core API.
+   */
+  private readExchangeProvider(ext: ExtractedContext): string {
+    const prefix = ext.msgRaw.split(/HTTP (?:Req|Res)/)[0] ?? "";
+    const cleaned = prefix
+      .replace(/[:\-\s]+$/, "")
+      .replace(/-?SDK$/i, "")
+      .trim();
+
+    return cleaned ? cleaned.toUpperCase() : "CORE_API";
   }
 
   // ── Private: error handling ──
@@ -490,7 +512,7 @@ export class CheckoutMapper implements LogMapper {
     path: string,
     ctx: Record<string, unknown>,
     isGatewayLog: boolean,
-    isCoreApiLog: boolean,
+    isHttpExchangeLog: boolean,
   ): string | null {
     const rawUrlForEndpoint =
       requestUrl ||
@@ -500,7 +522,7 @@ export class CheckoutMapper implements LogMapper {
 
     if (!rawUrlForEndpoint) return null;
 
-    if (isGatewayLog || isCoreApiLog) {
+    if (isGatewayLog || isHttpExchangeLog) {
       try {
         return new URL(rawUrlForEndpoint).pathname;
       } catch {

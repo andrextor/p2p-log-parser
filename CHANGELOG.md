@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-09-09
+
+### Fixed
+- **Las llamadas del SDK se quedaban sin título igual que el Core API.** La
+  2.3.0 arregló el Core API comparando el mensaje por igualdad, y
+  `guzzle-logger` antepone un prefijo por integración
+  (`APPLE_PAY-SDK: HTTP Req`), así que Apple Pay, Google Pay y Click to Pay
+  seguían apareciendo con el mensaje crudo, sin proveedor y con la respuesta
+  clasificada como `BACKEND_LOG`. Ahora cualquier intercambio de Guzzle produce
+  `APPLE_PAY | POST /paymentservices/startSession` y `APPLE_PAY | 200 OK`, con
+  el proveedor tomado del propio prefijo y las categorías `HTTP_REQ_OUT` /
+  `HTTP_RES`. Sin prefijo sigue siendo `CORE_API`.
+
+### Changed
+- El título de estos intercambios usa el identificador del proveedor tal cual
+  (`CORE_API`, no `Core API`), que es el mismo valor que `details.provider`.
+
 ## [2.3.0] - 2026-09-09
 
 ### Fixed

@@ -20,11 +20,11 @@ describe("Apple Pay en un export de Grafana", () => {
   it("empareja la ida y la vuelta del SDK", () => {
     const events = engine.parse(RAW, AppTypes.CHECKOUT).events;
 
-    const req = events.find((e) => e.message.includes("HTTP Req"));
-    const res = events.find((e) => e.message.includes("HTTP Res"));
+    const req = events.find((e) => e.pairRole === "request");
+    const res = events.find((e) => e.pairRole === "response");
 
-    expect(req?.pairRole).toBe("request");
-    expect(res?.pairRole).toBe("response");
+    expect(req).toBeDefined();
+    expect(res).toBeDefined();
     expect(req?.pairKey).toBeDefined();
     expect(req?.pairKey).toBe(res?.pairKey);
     expect(res?.durationMs).toBeGreaterThan(0);
@@ -54,8 +54,8 @@ describe("Core API en Checkout", () => {
 
   it("da titulo legible en vez de «HTTP Req» a secas", () => {
     const [req, res] = events();
-    expect(req.message).toBe("Core API | POST /core/ads/search");
-    expect(res.message).toBe("Core API | 404 Not Found");
+    expect(req.message).toBe("CORE_API | POST /core/ads/search");
+    expect(res.message).toBe("CORE_API | 404 Not Found");
   });
 
   it("identifica el servicio y clasifica bien la respuesta", () => {
@@ -73,5 +73,26 @@ describe("Core API en Checkout", () => {
     const res = events()[1];
     expect(res.outcome?.isError).toBe(true);
     expect(res.outcome?.code).toBe("XH");
+  });
+});
+
+describe("titulo de las llamadas del SDK", () => {
+  const engine = new P2PParserEngine();
+
+  it("nombra al proveedor a partir del prefijo del mensaje", () => {
+    const events = engine.parse(RAW, AppTypes.CHECKOUT).events;
+    const req = events.find((e) => e.pairRole === "request");
+    const res = events.find((e) => e.pairRole === "response");
+
+    // Antes se quedaban en «APPLE_PAY-SDK: HTTP Req» a secas.
+    expect(req?.message).toBe("APPLE_PAY | POST /paymentservices/startSession");
+    expect(res?.message).toBe("APPLE_PAY | 200 OK");
+    expect((req?.details as { provider?: string }).provider).toBe("APPLE_PAY");
+  });
+
+  it("clasifica la respuesta como respuesta, no como log de backend", () => {
+    const events = engine.parse(RAW, AppTypes.CHECKOUT).events;
+    expect(events.find((e) => e.pairRole === "request")?.category).toBe("HTTP_REQ_OUT");
+    expect(events.find((e) => e.pairRole === "response")?.category).toBe("HTTP_RES");
   });
 });
