@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   que es estable entre integraciones. El texto del mensaje se sigue mirando
   primero, así que los formatos que ya emparejaban no cambian.
 
+  Además, la comparación con `HTTP Req` / `HTTP Res` exigía igualdad exacta del
+  mensaje, y los SDK lo emiten con prefijo de integración
+  (`APPLE_PAY-SDK: HTTP Req`). Ahora basta con que lo contenga. Hay un test con
+  un export real de Grafana que lo cubre.
+
 ## [2.1.0] - 2026-09-09
 
 ### Changed
