@@ -35,6 +35,7 @@ import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStr
 import type { RestActionDetail } from "./rest/constants/RestActions";
 import { mergeRestActions } from "./rest/constants/RestActions";
 import { RestMapper } from "./rest/mappers/RestMapper";
+import { RestNewRelicCsvParser } from "./rest/strategies/RestNewRelicCsvParser";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
 
 export interface P2PParserEngineConfig {
@@ -74,7 +75,11 @@ export class P2PParserEngine {
       new CheckoutAwsCsvParser(),
       new LaravelLineParser(),
     ],
-    [AppTypes.REST]: [new RestNewRelicParser(), new LaravelLineParser()],
+    [AppTypes.REST]: [
+      new RestNewRelicCsvParser(),
+      new RestNewRelicParser(),
+      new LaravelLineParser(),
+    ],
     [AppTypes.MICROSITES]: [new LaravelLineParser()],
   };
 

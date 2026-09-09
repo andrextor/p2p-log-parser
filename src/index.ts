@@ -34,6 +34,7 @@ export type { LogMapper } from "./common/mappers/BaseMapper";
 
 // Strategies reusable by integrators
 export { LaravelLineParser } from "./common/strategies/LaravelLineParser";
+export { RestNewRelicCsvParser } from "./rest/strategies/RestNewRelicCsvParser";
 
 // Utility functions (for custom mappers/strategies)
 export {

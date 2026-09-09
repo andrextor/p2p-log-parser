@@ -32,6 +32,20 @@ derivada y los consumidores visuales no tengan que recalcularla.
 - `CheckoutLocalParser` eliminado (no era parte de la API pública): usar `LaravelLineParser`.
 - `CheckoutMapper` trataba `level === "500"` como error de validación; ahora es `level === "CRITICAL"`, que es el mismo nivel de Monolog tras la normalización. Marcado con `ponytail:` para revisar en la Fase 5.
 
+### Fase 0 — Validación contra un export real de New Relic
+
+Al pasar un export real de New Relic Logs de la API REST por el parser, el
+resultado eran **0 eventos**: nada de lo anterior era alcanzable para la forma
+en que los logs llegan de verdad.
+
+#### Added
+- **`RestNewRelicCsvParser`**: la exportación CSV de New Relic lleva la línea de Laravel completa en la columna `message`, con las comillas escapadas por duplicación. Ningún parser existente la reconocía: los de Checkout buscan el marcador `,"{`, que aquí no aparece. Lee las columnas por nombre memorizando la cabecera, y conserva `filePath` (identifica el canal de origen), `messageId`, `hostname`, `app` y `tenant`.
+- **`test/fixtures/rest-newrelic.csv`**: fixture derivado de ese export, anonimizado —credenciales, IPs, referencias y nombres de comercio sustituidos— conservando la forma del registro intacta.
+
+#### Fixed
+- **Errores de negocio con claves en español**: Interdin/Diners emiten `dinError` como `{codigo, mensaje, detalle}`, no `{code, message}`. El mapper solo miraba las claves en inglés, así que una `codigo: "88" — Transacción negada` se registraba como respuesta correcta. Se aceptan ambas formas y `0000`/`00`/`0` se tratan como «sin error».
+- **Marca de tiempo de las líneas sin offset**: en un export CSV se prefiere el epoch de New Relic, que es UTC inequívoco y con precisión de milisegundo, frente a suponer la zona horaria de un `[2026-08-28 13:35:45]`.
+
 ### Fase 2 — REST sobre el contrato real de los emisores
 
 #### Added

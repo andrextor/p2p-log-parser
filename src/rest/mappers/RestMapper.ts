@@ -28,6 +28,9 @@ const SOAP_MESSAGES = ["REQUEST", "RESPONSE", "RESPONSE Fault"];
 
 const LARAVEL_TAG = /^\[([A-Z][\w -]*)\](?:\[([A-Z_]+)\])?/;
 
+/** Códigos de `dinError` que significan «sin error». */
+const OK_BUSINESS_CODES = new Set(["0", "00", "0000"]);
+
 interface Shape {
   /** Payload efectivo: contexto Atropos o JSON incrustado en el mensaje. */
   payload: Record<string, unknown>;
@@ -366,11 +369,20 @@ export class RestMapper implements LogMapper {
         asRecord(shape.payload.data).dinError,
     );
 
-    if (bizError.code && bizError.code !== "0000") {
+    // Los proveedores ecuatorianos (Interdin/Diners) emiten el error de negocio
+    // con claves en español: `codigo`/`mensaje`/`detalle`. Mirar solo `code`
+    // dejaba pasar como éxito cosas como `codigo: "88" — Transacción negada`.
+    const code = String(bizError.codigo ?? bizError.code ?? "");
+    if (code && !OK_BUSINESS_CODES.has(code)) {
+      const reason =
+        bizError.mensaje ??
+        bizError.message ??
+        bizError.detalle ??
+        "Failed Op.";
       return {
-        message: `${shape.provider} | Error ${bizError.code}: ${bizError.message ?? "Failed Op."}`,
+        message: `${shape.provider} | Error ${code}: ${reason}`,
         category: "ERROR",
-        statusCode: bizError.code as string | number,
+        statusCode: code,
       };
     }
 

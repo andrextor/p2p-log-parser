@@ -180,6 +180,8 @@ describe("P2PParserEngine Grouping Logic", () => {
     expect(formats[AppTypes.CHECKOUT]).toBeDefined();
     expect(formats[AppTypes.CHECKOUT].some(f => f.name === "Grafana CSV Parser")).toBe(true);
     expect(formats[AppTypes.REST]).toBeDefined();
-    expect(formats[AppTypes.REST][0].name).toBe("New Relic Parser");
+    const restFormats = formats[AppTypes.REST].map((f) => f.name);
+    expect(restFormats).toContain("New Relic Parser");
+    expect(restFormats).toContain("New Relic CSV Parser");
   });
 });

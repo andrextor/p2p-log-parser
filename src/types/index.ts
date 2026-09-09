@@ -31,6 +31,7 @@ export interface NormalizedLogData {
     | "AWS_CSV"
     | "LARAVEL_LOCAL"
     | "NEW_RELIC_JSON"
+    | "NEW_RELIC_CSV"
     | "GRAFANA_CSV"
     | "GRAFANA_JSON";
 }
