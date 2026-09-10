@@ -39,6 +39,7 @@ import { mergeRestActions } from "./rest/constants/RestActions";
 import { RestMapper } from "./rest/mappers/RestMapper";
 import { RestNewRelicCsvParser } from "./rest/strategies/RestNewRelicCsvParser";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
+import { fromEpochMs } from "./utils/time";
 
 export interface P2PParserEngineConfig {
   customCheckoutActions?: Record<string, CheckoutActionDetail>;
@@ -300,7 +301,7 @@ export class P2PParserEngine {
       // Group by minute: YYYY-MM-DD HH:mm
       const executionTime = Number.isNaN(event.ts)
         ? "unknown_time"
-        : new Date(event.ts).toISOString().substring(0, 16).replace("T", " ");
+        : fromEpochMs(event.ts).substring(0, 16).replace("T", " ");
 
       if (!groupedBySession[sessionId]) {
         groupedBySession[sessionId] = {};

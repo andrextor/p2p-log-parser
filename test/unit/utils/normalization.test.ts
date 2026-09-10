@@ -2,8 +2,24 @@ import { P2PParserEngine } from "@/engine";
 import { AppTypes } from "@/types";
 import { buildEventBase } from "@/utils/mapper";
 import { normalizeLevel } from "@/utils/parsers";
-import { DEFAULT_TZ_OFFSET, toEpochMs } from "@/utils/time";
+import { DEFAULT_TZ_OFFSET, fromEpochMs, toEpochMs } from "@/utils/time";
 import { describe, expect, it } from "vitest";
+
+describe("fromEpochMs", () => {
+  it("renders the epoch in the log offset, not in UTC", () => {
+    // El bug: la línea del SDK salía en -05:00 y la de http.log en Z, así que
+    // la misma traza mostraba un salto de cinco horas entre request y response.
+    expect(fromEpochMs(1787942145554)).toBe("2026-08-28T13:35:45.554-05:00");
+    expect(toEpochMs(fromEpochMs(1787942145554))).toBe(1787942145554);
+  });
+
+  it("honours a different offset and falls back to UTC when it is unusable", () => {
+    expect(fromEpochMs(1787942145554, "+02:00")).toBe(
+      "2026-08-28T20:35:45.554+02:00",
+    );
+    expect(fromEpochMs(1787942145554, "nope")).toBe("2026-08-28T18:35:45.554Z");
+  });
+});
 
 describe("toEpochMs", () => {
   it("parses ISO timestamps with an explicit offset", () => {
