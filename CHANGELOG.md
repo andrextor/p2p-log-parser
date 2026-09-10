@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-09-10
+
+### Fixed
+- **Las marcas de tiempo del análisis REST mezclaban zonas horarias.** Las
+  líneas del SDK (`interdin-rest-sdk.log`) traen offset propio y se conservaban
+  en `-05:00`, pero las de `http.log` y `laravel.log` son naive, así que
+  `RestNewRelicCsvParser` caía al epoch de New Relic y lo renderizaba en UTC con
+  `toISOString()`. En una misma traza convivían `13:35:41-05:00` y
+  `18:35:45Z`, y cualquier visualizador que pintara `timestamp` tal cual
+  mostraba un salto de cinco horas entre el request y su response. El epoch
+  (`ts`) siempre fue correcto; solo el texto estaba desalineado. La misma fuga a
+  UTC afectaba a las etiquetas por minuto de `groupedBySession`.
+
+- **El desempate del orden cronológico comparaba textos, no tiempos.** Dos
+  eventos del mismo milisegundo se ordenaban con `localeCompare` sobre
+  `timestamp`, que es hora local: con offsets distintos pesaban primero los
+  dígitos de la hora y solo después la fracción de microsegundos que se quería
+  comparar. Ahora se compara solo esa fracción, como número.
+- El respaldo de `extractTimestamp` para líneas demasiado cortas inventaba la
+  hora actual en UTC, reintroduciendo la mezcla de zonas que arregla esta
+  versión.
+
+### Added
+- `fromEpochMs(ms, offset?)`, la contraparte de `toEpochMs`: rinde un epoch en
+  el offset de los logs en vez de en UTC.
+- `subMillis(timestamp)`, la fracción por debajo del milisegundo que `ts` no
+  conserva. Ambas exportadas desde el índice.
+
 ## [2.4.0] - 2026-09-09
 
 ### Fixed

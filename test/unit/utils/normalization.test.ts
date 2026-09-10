@@ -2,8 +2,47 @@ import { P2PParserEngine } from "@/engine";
 import { AppTypes } from "@/types";
 import { buildEventBase } from "@/utils/mapper";
 import { normalizeLevel } from "@/utils/parsers";
-import { DEFAULT_TZ_OFFSET, toEpochMs } from "@/utils/time";
+import {
+  DEFAULT_TZ_OFFSET,
+  fromEpochMs,
+  subMillis,
+  toEpochMs,
+} from "@/utils/time";
 import { describe, expect, it } from "vitest";
+
+describe("subMillis", () => {
+  it("reads the fraction below the millisecond", () => {
+    expect(subMillis("2026-08-28T13:35:41.094855-05:00")).toBeCloseTo(0.855);
+    expect(subMillis("2026-08-28T13:35:45.554-05:00")).toBe(0);
+    expect(subMillis("2026-08-28 13:35:45")).toBe(0);
+  });
+
+  it("orders the same millisecond across different offsets", () => {
+    // Comparar los textos como cadenas ordenaba por los dígitos de la hora
+    // local antes que por la fracción, así que dos offsets distintos se
+    // colaban desordenados.
+    const later = "2026-08-28T13:35:41.094900-05:00";
+    const earlier = "2026-08-28T18:35:41.094100+00:00";
+    expect(subMillis(earlier)).toBeLessThan(subMillis(later));
+    expect(earlier.localeCompare(later)).toBeGreaterThan(0);
+  });
+});
+
+describe("fromEpochMs", () => {
+  it("renders the epoch in the log offset, not in UTC", () => {
+    // El bug: la línea del SDK salía en -05:00 y la de http.log en Z, así que
+    // la misma traza mostraba un salto de cinco horas entre request y response.
+    expect(fromEpochMs(1787942145554)).toBe("2026-08-28T13:35:45.554-05:00");
+    expect(toEpochMs(fromEpochMs(1787942145554))).toBe(1787942145554);
+  });
+
+  it("honours a different offset and falls back to UTC when it is unusable", () => {
+    expect(fromEpochMs(1787942145554, "+02:00")).toBe(
+      "2026-08-28T20:35:45.554+02:00",
+    );
+    expect(fromEpochMs(1787942145554, "nope")).toBe("2026-08-28T18:35:45.554Z");
+  });
+});
 
 describe("toEpochMs", () => {
   it("parses ISO timestamps with an explicit offset", () => {

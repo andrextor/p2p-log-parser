@@ -40,3 +40,39 @@ export function toEpochMs(
 
   return Date.parse(value);
 }
+
+/** Offset en formato `±HH:MM`, tal como lo emiten los logs. */
+const FULL_OFFSET = /^([+-])(\d{2}):(\d{2})$/;
+
+/**
+ * Renderiza un epoch ms como marca de tiempo con offset explícito.
+ *
+ * `toISOString()` siempre devuelve UTC, así que mezclar su salida con las
+ * marcas que ya traen `-05:00` hace aparecer saltos de horas dentro de una
+ * misma traza. Con un offset no reconocible se cae a UTC.
+ */
+export function fromEpochMs(
+  ms: number,
+  offset: string = DEFAULT_TZ_OFFSET,
+): string {
+  const parts = offset.match(FULL_OFFSET);
+  if (!parts) return new Date(ms).toISOString();
+
+  const minutes =
+    (parts[1] === "-" ? -1 : 1) * (Number(parts[2]) * 60 + Number(parts[3]));
+  return `${new Date(ms + minutes * 60_000).toISOString().slice(0, -1)}${offset}`;
+}
+
+/**
+ * Fracción por debajo del milisegundo, que el epoch (`ts`) no conserva.
+ *
+ * Sirve para desempatar dos eventos del mismo milisegundo sin comparar los
+ * textos completos: esos traen la hora local de cada log, así que ordenarlos
+ * como cadenas mezcla offsets distintos y compara los dígitos de la hora antes
+ * que los de la fracción.
+ */
+export function subMillis(timestamp: string): number {
+  const fraction = timestamp.match(/\.(\d+)/);
+  if (!fraction) return 0;
+  return Number(`0.${fraction[1].slice(3)}`) || 0;
+}

@@ -4,6 +4,7 @@ import type {
   StrategyMetadata,
 } from "@/common/strategies/LogExtractionStrategy";
 import type { NormalizedLogData } from "@/types";
+import { fromEpochMs } from "@/utils/time";
 
 /** Marca de tiempo con zona horaria explícita (offset u hora Zulu). */
 const HAS_OFFSET = /([+-]\d{2}:?\d{2}|Z)$/;
@@ -111,9 +112,7 @@ export class RestNewRelicCsvParser implements LogExtractionStrategy {
 
   private readEpoch(value: string | undefined): string {
     const epoch = Number(value);
-    return Number.isFinite(epoch) && epoch > 0
-      ? new Date(epoch).toISOString()
-      : "";
+    return Number.isFinite(epoch) && epoch > 0 ? fromEpochMs(epoch) : "";
   }
 
   private carriedContext(
