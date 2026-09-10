@@ -39,7 +39,7 @@ import { mergeRestActions } from "./rest/constants/RestActions";
 import { RestMapper } from "./rest/mappers/RestMapper";
 import { RestNewRelicCsvParser } from "./rest/strategies/RestNewRelicCsvParser";
 import { RestNewRelicParser } from "./rest/strategies/RestNewRelicParser";
-import { fromEpochMs } from "./utils/time";
+import { fromEpochMs, subMillis } from "./utils/time";
 
 export interface P2PParserEngineConfig {
   customCheckoutActions?: Record<string, CheckoutActionDetail>;
@@ -259,9 +259,9 @@ export class P2PParserEngine {
 
       if (timeA === timeB) {
         // Tie-break 1: Use microsecond precision if available
-        if (a.timestamp !== b.timestamp) {
-          return a.timestamp.localeCompare(b.timestamp);
-        }
+        const subA = subMillis(a.timestamp);
+        const subB = subMillis(b.timestamp);
+        if (subA !== subB) return subA - subB;
 
         // Tie-break 2: If timestamps are 100% identical, ensure Req comes before Res
         const isReqA =

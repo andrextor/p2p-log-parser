@@ -18,9 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`ts`) siempre fue correcto; solo el texto estaba desalineado. La misma fuga a
   UTC afectaba a las etiquetas por minuto de `groupedBySession`.
 
+- **El desempate del orden cronológico comparaba textos, no tiempos.** Dos
+  eventos del mismo milisegundo se ordenaban con `localeCompare` sobre
+  `timestamp`, que es hora local: con offsets distintos pesaban primero los
+  dígitos de la hora y solo después la fracción de microsegundos que se quería
+  comparar. Ahora se compara solo esa fracción, como número.
+- El respaldo de `extractTimestamp` para líneas demasiado cortas inventaba la
+  hora actual en UTC, reintroduciendo la mezcla de zonas que arregla esta
+  versión.
+
 ### Added
 - `fromEpochMs(ms, offset?)`, la contraparte de `toEpochMs`: rinde un epoch en
-  el offset de los logs en vez de en UTC. Exportada desde el índice.
+  el offset de los logs en vez de en UTC.
+- `subMillis(timestamp)`, la fracción por debajo del milisegundo que `ts` no
+  conserva. Ambas exportadas desde el índice.
 
 ## [2.4.0] - 2026-09-09
 

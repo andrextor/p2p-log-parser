@@ -53,4 +53,9 @@ export {
 export { resolveOutcome } from "./common/outcome";
 export { matchEvent } from "./utils/match";
 export { buildCorrelation } from "./utils/correlation";
-export { toEpochMs, fromEpochMs, DEFAULT_TZ_OFFSET } from "./utils/time";
+export {
+  toEpochMs,
+  fromEpochMs,
+  subMillis,
+  DEFAULT_TZ_OFFSET,
+} from "./utils/time";

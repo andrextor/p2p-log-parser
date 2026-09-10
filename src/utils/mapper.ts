@@ -1,6 +1,6 @@
 import type { Correlation } from "@/types";
 import { buildCorrelation } from "./correlation";
-import { toEpochMs } from "./time";
+import { fromEpochMs, toEpochMs } from "./time";
 
 /** FNV-1a de 32 bits en base36. Suficiente para desambiguar dentro de una traza. */
 function hash32(value: string): string {
@@ -35,7 +35,7 @@ export function extractTimestamp(
 ): string {
   if (data.datetime) return String(data.datetime);
   if (data.timestamp) return String(data.timestamp);
-  if (line.length < 23) return new Date().toISOString();
+  if (line.length < 23) return fromEpochMs(Date.now());
   return line.substring(0, 23).replace(/"/g, "");
 }
 
