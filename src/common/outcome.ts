@@ -3,6 +3,20 @@ import type { Outcome, RestException } from "@/types";
 /** Códigos de error de negocio que en realidad significan «sin error». */
 const OK_BUSINESS_CODES = new Set(["0", "00", "0000"]);
 
+/**
+ * Estados del bloque `status` del gateway que no son un rechazo. Un pago
+ * aprobado responde `APPROVED`, no `OK`; tratarlo como error pintaba en rojo
+ * la respuesta de `/rest/gateway/process` de toda transacción aprobada.
+ * `PENDING` tampoco es un fallo: es que el proveedor aún no ha contestado.
+ */
+const OK_GATEWAY_STATUSES = new Set([
+  "OK",
+  "APPROVED",
+  "APPROVED_PARTIAL",
+  "PENDING",
+  "PENDING_VALIDATION",
+]);
+
 /** Código HTTP incrustado en el texto de una excepción, p.ej. `` `503` ``. */
 const STATUS_IN_TEXT = /`(\d{3})`/;
 
@@ -78,7 +92,10 @@ function readBusinessError(
   const status = asRecord(
     asRecord(asRecord(payload.response).body).status ?? payload.status,
   );
-  if (status.status && String(status.status).toUpperCase() !== "OK") {
+  if (
+    status.status &&
+    !OK_GATEWAY_STATUSES.has(String(status.status).toUpperCase())
+  ) {
     return {
       code: String(status.reason ?? status.status),
       message: String(status.message ?? status.status),

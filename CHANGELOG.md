@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-09-11
+
+### Fixed
+- **La respuesta del gateway a un pago aprobado se marcaba como rechazo.**
+  `resolveOutcome` tomaba como error de negocio cualquier bloque `status` del
+  gateway distinto de `OK`, y `/rest/gateway/process` responde `APPROVED`
+  cuando el pago sale bien: el evento llegaba con `outcome.isError = true`,
+  `status: "REJECTED"` y el mensaje «Approved», y el visor lo pintaba en rojo.
+  `APPROVED`, `APPROVED_PARTIAL`, `PENDING` y `PENDING_VALIDATION` cuentan
+  ahora como respuesta sin error; `REJECTED`, `FAILED` y el resto siguen siendo
+  rechazo.
+
 ## [2.5.0] - 2026-09-11
 
 ### Added

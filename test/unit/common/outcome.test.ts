@@ -87,6 +87,21 @@ describe("resolveOutcome", () => {
     });
   });
 
+  it("an APPROVED gateway status is not a rejection", () => {
+    // La respuesta real de /rest/gateway/process de un pago aprobado.
+    for (const status of ["APPROVED", "PENDING", "APPROVED_PARTIAL"]) {
+      expect(
+        resolveOutcome({
+          context: {},
+          statusCode: 200,
+          payload: {
+            response: { body: { status: { status, reason: "00", message: "Approved" } } },
+          },
+        }),
+      ).toMatchObject({ isError: false, status: "OK" });
+    }
+  });
+
   it("reads the gateway status block used by Checkout", () => {
     const outcome = resolveOutcome({
       context: {},
