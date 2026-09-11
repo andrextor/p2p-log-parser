@@ -12,6 +12,8 @@ export type {
   RestParseMetadata,
   MicrositesParseMetadata,
 } from "./engine";
+export type { CheckoutSessionOutcome } from "./checkout/metadata/CheckoutMetadataExtractor";
+export { CHECKOUT_FUNNEL_ORDER } from "./checkout/metadata/CheckoutMetadataExtractor";
 
 // Export domain types commonly used by clients
 export * from "./types";

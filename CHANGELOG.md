@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-09-11
+
+### Added
+- **La sesión de checkout dice cómo acabó, no solo si llegó a `/process`.**
+  `CheckoutSessionMetadata` gana `transactionStatus` (el `state` del último
+  `Update transaction trace: Transaction resolved`, por orden cronológico: un
+  rechazo seguido de un reintento aprobado acaba en `APPROVED`), `outcome`
+  (`APPROVED | REJECTED | PENDING | FAILED | EXPIRED | ABANDONED | UNKNOWN`) y
+  `lastStep`, el hito más lejano alcanzado, para decir en qué paso se abandonó.
+  `hasSuccessfulTransaction` se mantiene y equivale a `outcome === "APPROVED"`.
+- `timings.process`, `timings.firstEvent` y `timings.lastEvent`, con sus
+  derivadas `durations.timeToProcess` y `durations.total`. Hasta ahora solo se
+  medía cuánto tardaba el usuario en entrar y ver la sesión; faltaba cuánto
+  tardó en pagar y cuánto duró la sesión.
+- `checkout.session.expired` fija `finalState = "EXPIRED"`.
+- `CHECKOUT_FUNNEL_ORDER` y el tipo `CheckoutSessionOutcome` se exportan.
+- Fixture `checkout-approved-session.csv`: export real de Grafana de una sesión
+  aprobada de extremo a extremo, con el login del comercio anonimizado.
+
+### Fixed
+- **El retorno al comercio se contaba como 3DS.** El hito se marcaba con
+  `msg.includes("3ds")`, y el `POST …/return` del `ReturnController` se
+  etiqueta «Gateway Return (3DS / Redirection)» aunque no haya habido reto.
+  Toda sesión con retorno salía con `threeDS: true`. Ahora solo cuentan
+  `/mpi/lookup` y el mensaje «Opening 3DS» del propio reto.
+
 ## [2.4.1] - 2026-09-10
 
 ### Fixed
