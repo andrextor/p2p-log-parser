@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-09-11
+
+### Fixed
+- **La respuesta del gateway a un pago aprobado se marcaba como rechazo.**
+  `resolveOutcome` tomaba como error de negocio cualquier bloque `status` del
+  gateway distinto de `OK`, y `/rest/gateway/process` responde `APPROVED`
+  cuando el pago sale bien: el evento llegaba con `outcome.isError = true`,
+  `status: "REJECTED"` y el mensaje «Approved», y el visor lo pintaba en rojo.
+
+- **`Transaction resolved` no correlacionaba por `placetopay_id`.** Esa línea
+  trae el id recién asignado como `updated_placetopay_id`, con `placetopay_id`
+  todavía en `null`, y `buildCorrelation` solo leía el segundo. Justo la línea
+  que resuelve el pago se quedaba sin el identificador para filtrar por él.
+
+### Changed
+- **El bloque `status` del gateway se traduce a resultado, no a error.**
+  `OK`, `APPROVED` y `APPROVED_PARTIAL` → `OK`; `PENDING` y
+  `PENDING_VALIDATION` → `PENDING`; `REJECTED` → `REJECTED`; `FAILED` y
+  cualquier estado desconocido → `FAILED`. Solo `FAILED` lleva
+  `isError: true`: un rechazo es la respuesta del proveedor, no un fallo de la
+  operación, y no debe contarse entre los errores del lote. `code` y `message`
+  se conservan en los tres casos para que el visor pueda explicarlo.
+
 ## [2.5.0] - 2026-09-11
 
 ### Added

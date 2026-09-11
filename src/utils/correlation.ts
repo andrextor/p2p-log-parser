@@ -41,7 +41,9 @@ export function buildCorrelation(
     traceId: first(ctx.aws_request_id, ctx.id, ctx.messageId, ctx.requestId),
     sessionId: first(ctx.session_id, data.session_id, payload.session_id),
     transactionId: first(ctx.transaction_id, data.transaction_id),
-    placetopayId: first(ctx.placetopay_id),
+    // «Transaction resolved» trae el id recién asignado como
+    // `updated_placetopay_id`, con `placetopay_id` aún en null.
+    placetopayId: first(ctx.placetopay_id, ctx.updated_placetopay_id),
     reference: first(
       ctx.reference,
       asRecord(body.payment).reference,
