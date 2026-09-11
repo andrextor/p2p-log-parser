@@ -87,19 +87,30 @@ describe("resolveOutcome", () => {
     });
   });
 
-  it("an APPROVED gateway status is not a rejection", () => {
+  it("translates the gateway status: approved is ok, pending and rejected are not errors, failed is", () => {
+    const gateway = (status: string) =>
+      resolveOutcome({
+        context: {},
+        statusCode: 200,
+        payload: {
+          response: { body: { status: { status, reason: "XX", message: "msg" } } },
+        },
+      });
+
     // La respuesta real de /rest/gateway/process de un pago aprobado.
-    for (const status of ["APPROVED", "PENDING", "APPROVED_PARTIAL"]) {
-      expect(
-        resolveOutcome({
-          context: {},
-          statusCode: 200,
-          payload: {
-            response: { body: { status: { status, reason: "00", message: "Approved" } } },
-          },
-        }),
-      ).toMatchObject({ isError: false, status: "OK" });
-    }
+    expect(gateway("APPROVED")).toMatchObject({ isError: false, status: "OK" });
+    expect(gateway("APPROVED_PARTIAL")).toMatchObject({ isError: false, status: "OK" });
+    expect(gateway("PENDING")).toMatchObject({ isError: false, status: "PENDING", code: "XX" });
+    expect(gateway("REJECTED")).toMatchObject({
+      isError: false,
+      status: "REJECTED",
+      kind: "business",
+      code: "XX",
+      message: "msg",
+    });
+    expect(gateway("FAILED")).toMatchObject({ isError: true, status: "FAILED", kind: "business" });
+    // Lo que no conocemos se trata como fallo antes que como éxito.
+    expect(gateway("WHATEVER")).toMatchObject({ isError: true, status: "FAILED" });
   });
 
   it("reads the gateway status block used by Checkout", () => {

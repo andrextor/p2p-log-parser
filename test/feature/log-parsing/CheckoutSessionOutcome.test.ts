@@ -35,6 +35,19 @@ describe("resultado de la sesión de checkout", () => {
     expect(s.lastStep).toBe("process");
   });
 
+  it("«Transaction resolved» correlaciona por el placetopay_id recién asignado", () => {
+    const csv = fs.readFileSync(
+      path.resolve(__dirname, "../../fixtures/checkout-approved-session.csv"),
+      "utf-8",
+    );
+    const { events } = new P2PParserEngine().parse(csv, AppTypes.CHECKOUT);
+    const resolved = events.find((e) =>
+      e.details.rawTitle?.includes("Transaction resolved"),
+    );
+    // La línea trae `placetopay_id: null` y `updated_placetopay_id: 1599893053`.
+    expect(resolved?.correlation.placetopayId).toBe("1599893053");
+  });
+
   it("el retorno al comercio no cuenta como 3DS", () => {
     // El log trae `threeDS: "unsupported"` y un POST …/return del
     // ReturnController; antes ese mensaje marcaba el hito por contener «3DS».

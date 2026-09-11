@@ -4,18 +4,21 @@ import type { Outcome, RestException } from "@/types";
 const OK_BUSINESS_CODES = new Set(["0", "00", "0000"]);
 
 /**
- * Estados del bloque `status` del gateway que no son un rechazo. Un pago
+ * Bloque `status` del gateway de Checkout, traducido a resultado. Un pago
  * aprobado responde `APPROVED`, no `OK`; tratarlo como error pintaba en rojo
- * la respuesta de `/rest/gateway/process` de toda transacción aprobada.
- * `PENDING` tampoco es un fallo: es que el proveedor aún no ha contestado.
+ * la respuesta de `/rest/gateway/process` de toda transacción aprobada. Y un
+ * `REJECTED` no es un fallo: la operación se completó y la respuesta fue «no».
+ * Solo `FAILED` (y lo que no conocemos) cuenta como error.
  */
-const OK_GATEWAY_STATUSES = new Set([
-  "OK",
-  "APPROVED",
-  "APPROVED_PARTIAL",
-  "PENDING",
-  "PENDING_VALIDATION",
-]);
+const GATEWAY_STATUS: Record<string, Outcome["status"]> = {
+  OK: "OK",
+  APPROVED: "OK",
+  APPROVED_PARTIAL: "OK",
+  PENDING: "PENDING",
+  PENDING_VALIDATION: "PENDING",
+  REJECTED: "REJECTED",
+  FAILED: "FAILED",
+};
 
 /** Código HTTP incrustado en el texto de una excepción, p.ej. `` `503` ``. */
 const STATUS_IN_TEXT = /`(\d{3})`/;
@@ -88,21 +91,28 @@ function readBusinessError(
     };
   }
 
-  // Bloque `status` del gateway de Checkout: `{status, reason, message}`.
+  return undefined;
+}
+
+/** Bloque `status` del gateway de Checkout: `{status, reason, message}`. */
+function readGatewayStatus(input: OutcomeInput): Outcome | undefined {
+  const payload = asRecord(input.payload);
   const status = asRecord(
     asRecord(asRecord(payload.response).body).status ?? payload.status,
   );
-  if (
-    status.status &&
-    !OK_GATEWAY_STATUSES.has(String(status.status).toUpperCase())
-  ) {
-    return {
-      code: String(status.reason ?? status.status),
-      message: String(status.message ?? status.status),
-    };
-  }
+  if (!status.status) return undefined;
 
-  return undefined;
+  const resolved =
+    GATEWAY_STATUS[String(status.status).toUpperCase()] ?? "FAILED";
+  if (resolved === "OK") return undefined;
+
+  return {
+    isError: resolved === "FAILED",
+    status: resolved,
+    kind: "business",
+    code: String(status.reason ?? status.status),
+    message: String(status.message ?? status.status),
+  };
 }
 
 function isValidationError(input: OutcomeInput): boolean {
@@ -146,6 +156,14 @@ export function resolveOutcome(input: OutcomeInput): Outcome {
       message: exception.message,
       httpStatus: hasHttpStatus ? httpStatus : undefined,
       exception,
+    };
+  }
+
+  const gateway = readGatewayStatus(input);
+  if (gateway) {
+    return {
+      ...gateway,
+      httpStatus: hasHttpStatus ? httpStatus : undefined,
     };
   }
 
