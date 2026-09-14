@@ -49,7 +49,7 @@ raw text → sanitize → splitLogicalUnits →
   - `constants/` — action maps (checkout + rest only; microsites has none)
 - **Shared**: `src/common/strategies/LogExtractionStrategy.ts`, `src/common/strategies/LaravelLineParser.ts`, `src/common/mappers/BaseMapper.ts`, `src/common/metadata/MetadataExtractor.ts`, `src/common/outcome.ts`
 - **Utils**: `src/utils/time.ts` (`toEpochMs`), `src/utils/correlation.ts` (`buildCorrelation`), `src/utils/match.ts` (`matchEvent`), `src/utils/mapper.ts` (`buildEventBase`)
-- Tests: `test/unit/`, `test/feature/`, `test/fixtures/` (`sample.csv` de Checkout, `rest-newrelic.csv` derivado de un export real y anonimizado) — no external services
+- Tests: `test/unit/`, `test/feature/`, `test/fixtures/` (`sample.csv` de Checkout, `checkout-bref-queue.csv` de un Checkout en Bref —columna `LEVEL\tmensaje\t{json}`, hora sin fracción—, `rest-newrelic.csv` derivado de un export real y anonimizado) — no external services
 
 ## Path aliases
 

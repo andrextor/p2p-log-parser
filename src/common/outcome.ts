@@ -20,8 +20,11 @@ const GATEWAY_STATUS: Record<string, Outcome["status"]> = {
   FAILED: "FAILED",
 };
 
-/** Código HTTP incrustado en el texto de una excepción, p.ej. `` `503` ``. */
-const STATUS_IN_TEXT = /`(\d{3})`/;
+/**
+ * Código HTTP incrustado en el texto de una excepción: `` `503` `` o, como lo
+ * redacta Guzzle, `` `403 Forbidden` ``.
+ */
+const STATUS_IN_TEXT = /`(\d{3})(?: [^`]*)?`/;
 
 export interface OutcomeInput {
   /** Contexto del registro de log. */
@@ -102,8 +105,11 @@ function readGatewayStatus(input: OutcomeInput): Outcome | undefined {
   );
   if (!status.status) return undefined;
 
+  const raw = String(status.status).toUpperCase();
+  // El gateway tiene varios `PENDING_*` (`PENDING_CONFIRMATION`,
+  // `PENDING_PROCESS`…): todos siguen abiertos, ninguno es un fallo.
   const resolved =
-    GATEWAY_STATUS[String(status.status).toUpperCase()] ?? "FAILED";
+    GATEWAY_STATUS[raw] ?? (raw.startsWith("PENDING") ? "PENDING" : "FAILED");
   if (resolved === "OK") return undefined;
 
   return {

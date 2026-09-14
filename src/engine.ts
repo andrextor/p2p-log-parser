@@ -276,8 +276,10 @@ export class P2PParserEngine {
         if (isReqA && isResB) return -1;
         if (isResA && isReqB) return 1;
 
-        // Tie-break 3: Deterministic order by event ID
-        return a.id.localeCompare(b.id);
+        // Tie-break 3: el orden del fichero. Los lambdas de Bref exportan la
+        // hora sin fracción, así que un job entero cae en el mismo segundo y
+        // ordenar por id barajaba «Start Updating» con «Transaction resolved».
+        return 0;
       }
       return timeA - timeB;
     });

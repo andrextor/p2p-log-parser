@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-09-14
+
+### Added
+- **Soporte del export de Grafana de un Checkout desplegado con Bref.** La
+  columna `@message` trae `LEVEL\tmensaje\t{json}` en vez del JSON a pelo, sin
+  `datetime`, `TENANT_DOMAIN` ni `aws_request_id`, y la hora del CSV viene sin
+  fracción. `CheckoutGrafanaCsvParser` acepta ambos marcadores; el formato
+  anterior se sigue leyendo igual. Fixture real recortado en
+  `test/fixtures/checkout-bref-queue.csv`.
+- Etiquetas `Gateway: Transaction Query` (`/gateway/query`) y `Gateway:
+  Transaction Search` (`/gateway/search`), con el motivo cuando no es `OK`.
+
+### Fixed
+- Los estados `PENDING_*` del gateway (`PENDING_CONFIRMATION`…) se resolvían
+  como `FAILED`; ahora son `PENDING` y no cuentan como error.
+- `CheckoutMapper` no pasaba el `status_code` de la respuesta a
+  `resolveOutcome`, así que un `403` del gateway salía como `OK`.
+- El código HTTP de una excepción de Guzzle (`` `403 Forbidden` ``) no se leía;
+  solo se aceptaba el número a secas.
+- Con marcas de tiempo sin fracción, los eventos del mismo segundo se
+  ordenaban por id y barajaban «Start Updating» con «Transaction resolved».
+  Ahora conservan el orden del fichero.
+- El resultado de sesión ignoraba la transacción si el export no traía la
+  llamada a `/process`: una sesión con `Transaction resolved: APPROVED` salía
+  como `ABANDONED`.
+
 ## [2.5.1] - 2026-09-11
 
 ### Fixed

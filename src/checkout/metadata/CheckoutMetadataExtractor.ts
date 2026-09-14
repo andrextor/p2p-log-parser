@@ -387,16 +387,19 @@ export class CheckoutMetadataExtractor
   }
 
   /**
-   * Procesó → manda la transacción. No procesó → expiró o se abandonó.
-   * `hasSuccessfulTransaction` se mantiene por compatibilidad; es `outcome
-   * === "APPROVED"`.
+   * Hay transacción → manda su estado, aunque el export empiece después de
+   * `/process` (los jobs de cola de Bref solo traen la resolución). Sin
+   * transacción → expiró o se abandonó. `hasSuccessfulTransaction` se mantiene
+   * por compatibilidad; es `outcome === "APPROVED"`.
    */
   private resolveOutcome(row: CheckoutSessionMetadata): CheckoutSessionOutcome {
-    if (row.steps.process) {
-      const status = row.transactionStatus;
-      return status && TRANSACTION_OUTCOMES.has(status)
-        ? (status as CheckoutSessionOutcome)
-        : "UNKNOWN";
+    const status = row.transactionStatus;
+    if (row.steps.process || status) {
+      if (!status) return "UNKNOWN";
+      if (TRANSACTION_OUTCOMES.has(status)) {
+        return status as CheckoutSessionOutcome;
+      }
+      return status.startsWith("PENDING") ? "PENDING" : "UNKNOWN";
     }
     return row.finalState === "EXPIRED" ? "EXPIRED" : "ABANDONED";
   }
