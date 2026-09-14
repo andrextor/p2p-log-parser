@@ -86,3 +86,10 @@ describe("export de Grafana con formato Bref", () => {
     expect(stats.unrecognized).toBeGreaterThan(0);
   });
 });
+
+describe("ids con hora sin fracción", () => {
+  it("cada línea del job tiene un id distinto aunque comparta segundo y mensaje", () => {
+    const { events } = parse();
+    expect(new Set(events.map((e) => e.id)).size).toBe(events.length);
+  });
+});

@@ -63,6 +63,11 @@ export function extractHttpFromMessage(message: string): {
 /**
  * Campos comunes que todo mapper debe resolver igual: id estable, epoch ms y
  * correlación. Se usa con spread al construir el `LogEvent`.
+ *
+ * La semilla del id lleva también el contexto: el mensaje que llega aquí es el
+ * de presentación («State Update (Transaction)»), que se repite en varias
+ * líneas del mismo job. Con hora sin fracción, tres líneas de un segundo
+ * compartían id y el visor, que deduplica por id, tiraba dos.
  */
 export function buildEventBase(
   ctx: Record<string, unknown>,
@@ -72,7 +77,7 @@ export function buildEventBase(
 ): { id: string; ts: number; correlation: Correlation } {
   const ts = toEpochMs(timestamp);
   return {
-    id: buildEventId(ctx, `${ts}|${message}`),
+    id: buildEventId(ctx, `${ts}|${message}|${JSON.stringify(ctx)}`),
     ts,
     correlation: buildCorrelation(ctx, extra),
   };
