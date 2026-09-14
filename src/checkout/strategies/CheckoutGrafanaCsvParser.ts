@@ -13,26 +13,20 @@ export class CheckoutGrafanaCsvParser implements LogExtractionStrategy {
     const trimmed = line.trim();
 
     // 1. Noise Filtering
-    if (trimmed.startsWith('"Time"') || !trimmed.includes(',"{')) {
-      return null;
-    }
+    if (trimmed.startsWith('"Time"')) return null;
+
+    // 2. Locate the JSON payload. La columna `@message` trae el JSON a pelo
+    // (`,"{…}`) o, en los lambdas de Bref, como `LEVEL\tmensaje\t{…}`.
+    const startIndex = trimmed.indexOf(',"{');
+    const brefIndex = startIndex === -1 ? trimmed.indexOf("\t{") : -1;
+    if (startIndex === -1 && brefIndex === -1) return null;
 
     try {
-      // 2. Locate the JSON payload
-      const startJsonMarker = ',"{';
-      const startIndex = trimmed.indexOf(startJsonMarker);
-      if (startIndex === -1) return null;
+      const jsonStart = startIndex !== -1 ? startIndex + 2 : brefIndex + 1;
+      const jsonEnd = trimmed.lastIndexOf("}");
+      if (jsonEnd <= jsonStart) return null;
 
-      const jsonStart = startIndex + 1;
-      const lastBracketIndex = trimmed.lastIndexOf('}"');
-      if (lastBracketIndex === -1) return null;
-
-      let jsonContent = trimmed.substring(jsonStart, lastBracketIndex + 2);
-
-      // Remove outer CSV quotes
-      if (jsonContent.startsWith('"') && jsonContent.endsWith('"')) {
-        jsonContent = jsonContent.substring(1, jsonContent.length - 1);
-      }
+      let jsonContent = trimmed.substring(jsonStart, jsonEnd + 1);
 
       // 3. Normalize CSV double-quotes
       jsonContent = unescapeCsvDoubleQuotes(jsonContent);
@@ -41,10 +35,7 @@ export class CheckoutGrafanaCsvParser implements LogExtractionStrategy {
       const parsed = JSON.parse(jsonContent) as Record<string, unknown>;
 
       // 5. Use timestamp from CSV first column as fallback
-      const timestampPart = trimmed
-        .substring(0, startIndex)
-        .split(",")[0]
-        .replace(/"/g, "");
+      const timestampPart = trimmed.split(",")[0].replace(/"/g, "");
 
       return buildNormalizedLogData(
         parsed,
@@ -63,7 +54,7 @@ export class CheckoutGrafanaCsvParser implements LogExtractionStrategy {
       description:
         "Parses logs exported from Grafana CloudWatch in CSV format.",
       detectionRule:
-        "Contains the JSON marker ',\"{' and starts with standard CSV headers or date.",
+        "Contains the JSON marker ',\"{' or a Bref `LEVEL\\tmessage\\t{` column.",
     };
   }
 }

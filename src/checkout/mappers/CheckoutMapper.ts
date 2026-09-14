@@ -98,6 +98,11 @@ export class CheckoutMapper implements LogMapper {
     const outcome = resolveOutcome({
       context: ext.ctx,
       payload: ext.ctx,
+      statusCode: (ext.response.status_code ?? ext.ctx.status_code) as
+        | number
+        | string
+        | null
+        | undefined,
       message: ext.msgRaw,
       subType: ext.subType,
     });

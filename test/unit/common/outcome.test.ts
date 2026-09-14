@@ -139,3 +139,18 @@ describe("resolveOutcome", () => {
     });
   });
 });
+
+describe("estados PENDING_* del gateway", () => {
+  it("PENDING_CONFIRMATION sigue abierto, no es un fallo", () => {
+    const outcome = resolveOutcome({
+      context: {},
+      payload: {
+        response: {
+          body: { status: { status: "PENDING_CONFIRMATION", reason: "?!" } },
+        },
+      },
+    });
+    expect(outcome.status).toBe("PENDING");
+    expect(outcome.isError).toBe(false);
+  });
+});

@@ -24,6 +24,8 @@ export const GATEWAY_PATH_LABELS: Record<
     showReason: true,
   },
   "/collect": { label: "Gateway: Collect", showReason: true },
+  "/query": { label: "Gateway: Transaction Query", showReason: true },
+  "/search": { label: "Gateway: Transaction Search", showReason: true },
   "/information": { label: "Gateway: Instrument Information" },
   "/interests": {
     label: "Gateway: Interest Calculation",
