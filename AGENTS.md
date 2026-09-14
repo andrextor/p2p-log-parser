@@ -31,7 +31,7 @@ raw text → sanitize → splitLogicalUnits →
   for each unit:
     1. Strategy.parse(unit) → NormalizedLogData | null   (first non-null strategy wins)
     2. Mapper.canHandle(data) → Mapper.map(data) → LogEvent
-    3. Errors caught → ParseResult.errors[]; unidades no reconocidas → stats.unrecognized
+    3. Errors caught → ParseResult.errors[]; unidades no reconocidas → ParseResult.unrecognized[] (+ cuenta en stats.unrecognized)
 → sort by `ts` → pair request/response (durationMs) → group by session
 → extract metadata → build stats
 ```

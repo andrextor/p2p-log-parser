@@ -99,3 +99,16 @@ describe("ids con hora sin fracción", () => {
     expect(new Set(events.map((e) => e.id)).size).toBe(events.length);
   });
 });
+
+describe("unidades no reconocidas", () => {
+  it("devuelve el texto, no solo la cuenta", () => {
+    const { unrecognized, stats } = parse();
+    expect(unrecognized).toHaveLength(stats.unrecognized);
+    expect(unrecognized[0]).toEqual({
+      line: 1,
+      content: expect.stringContaining('"Time"'),
+    });
+    expect(unrecognized.some((u) => u.content.includes("REPORT RequestId"))).toBe(true);
+    expect(unrecognized.every((u) => u.content.length <= 200)).toBe(true);
+  });
+});
