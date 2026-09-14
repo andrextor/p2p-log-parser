@@ -70,12 +70,19 @@ describe("emparejado de llamadas Guzzle en Checkout", () => {
     expect(events[0].pairKey).toBe(events[1].pairKey);
   });
 
-  it("sin aws_request_id no inventa un par", () => {
+  it("sin aws_request_id empareja por sesión, y sin nada no inventa un par", () => {
     const { aws_request_id, ...sinTraza } = request;
-    const events = engine.parse(
+    const [porSesion] = engine.parse(
       line("Apple Pay session", sinTraza, "2026-09-08T17:13:22.000-05:00"),
       AppTypes.CHECKOUT,
     ).events;
-    expect(events[0]?.pairKey).toBeUndefined();
+    expect(porSesion?.pairKey).toBe(`3855793|${URL}`);
+
+    const { session_id, ...sinNada } = sinTraza;
+    const [suelto] = engine.parse(
+      line("Apple Pay session", sinNada, "2026-09-08T17:13:22.000-05:00"),
+      AppTypes.CHECKOUT,
+    ).events;
+    expect(suelto?.pairKey).toBeUndefined();
   });
 });

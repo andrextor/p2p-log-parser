@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-09-14
+
+### Fixed
+- **Las llamadas al gateway no se emparejaban en el export de Bref.** El
+  `pairKey` de Checkout solo se fijaba con `aws_request_id`, que Bref no mete
+  en el JSON (el `RequestId` va en las líneas START/END del lambda). Sin
+  traza, la ida y la vuelta de `[GW_LIB] HTTP Req/Res` quedaban sueltas y el
+  visor las pintaba como dos tarjetas. Ahora la traza cae a `transaction_id` y
+  después a `session_id`; sin ninguno de los tres sigue sin inventarse un par.
+
 ## [2.6.1] - 2026-09-14
 
 ### Fixed
