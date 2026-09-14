@@ -31,6 +31,7 @@ import {
 import type { CheckoutActionDetail } from "./checkout/constants/CheckoutActions";
 import { mergeCheckoutActions } from "./checkout/constants/CheckoutActions";
 import { CheckoutMapper } from "./checkout/mappers/CheckoutMapper";
+import { RAW_STREAM_MAX_LENGTH } from "./common/constants";
 import type { LogMapper } from "./common/mappers/BaseMapper";
 import { GenericMapper } from "./common/mappers/GenericMapper";
 import type { LogExtractionStrategy } from "./common/strategies/LogExtractionStrategy";
@@ -65,6 +66,13 @@ export interface ParseResult {
   groupedBySession?: Record<string, Record<string, LogEvent[]>>;
   metadata?: ParseMetadata;
   errors: { line: number; reason: string; content: string }[];
+  /**
+   * Las unidades que ninguna estrategia convirtió en evento, con el texto
+   * recortado. `stats.unrecognized` solo las cuenta; sin el texto no hay forma
+   * de saber si son ruido (START/END/REPORT de un lambda) o un formato que
+   * falta por soportar.
+   */
+  unrecognized: { line: number; content: string }[];
   stats: ParseStats;
 }
 
@@ -187,12 +195,14 @@ export class P2PParserEngine {
     raw: string,
     activeType: AppType | "ALL" = AppTypes.CHECKOUT,
   ): ParseResult {
-    if (!raw) return { events: [], errors: [], stats: emptyStats() };
+    if (!raw) {
+      return { events: [], errors: [], unrecognized: [], stats: emptyStats() };
+    }
 
     const rows = this.sanitizeRaw(raw);
     const events: LogEvent[] = [];
     const errors: ParseResult["errors"] = [];
-    let unrecognized = 0;
+    const unrecognized: ParseResult["unrecognized"] = [];
 
     const allApps = Object.values(AppTypes) as AppType[];
     const appPriority =
@@ -239,7 +249,10 @@ export class P2PParserEngine {
 
             events.push(mapper.map(inferredData, unit, index));
           } else {
-            unrecognized++;
+            unrecognized.push({
+              line: index + 1,
+              content: unit.slice(0, RAW_STREAM_MAX_LENGTH),
+            });
           }
         }
       } catch (err) {
@@ -325,7 +338,8 @@ export class P2PParserEngine {
       groupedBySession,
       metadata,
       errors,
-      stats: buildStats(sortedEvents, unrecognized),
+      unrecognized,
+      stats: buildStats(sortedEvents, unrecognized.length),
     };
   }
 
