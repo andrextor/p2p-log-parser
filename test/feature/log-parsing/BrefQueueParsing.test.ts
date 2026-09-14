@@ -57,7 +57,7 @@ describe("export de Grafana con formato Bref", () => {
     expect(session?.outcome).toBe("APPROVED");
   });
 
-  it("etiqueta las consultas al gateway", () => {
+  it("etiqueta las consultas al gateway y las empareja por transacción", () => {
     const { events } = parse();
     const search = events.filter((e) =>
       e.details.endpoint?.endsWith("/gateway/search"),
@@ -66,6 +66,12 @@ describe("export de Grafana con formato Bref", () => {
       "Gateway: Transaction Search",
       "Gateway: Transaction Search [OK]",
     ]);
+    const [req, res] = search;
+    expect(req.pairRole).toBe("request");
+    expect(res.pairRole).toBe("response");
+    expect(req.pairKey).toBe(res.pairKey);
+    expect(req.pairKey).toBe("334|https://api-copper.placetopay.dev/gateway/search");
+    expect(res.durationMs).toBe(0);
   });
 
   it("un 403 del gateway es un fallo, y la excepción CRITICAL también", () => {

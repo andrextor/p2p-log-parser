@@ -384,7 +384,10 @@ export class CheckoutMapper implements LogMapper {
     isGatewayLog: boolean,
     isHttpExchangeLog: boolean,
   ): { pairKey?: string; pairRole?: LogEvent["pairRole"] } {
-    const traceId = ext.ctx.aws_request_id;
+    // Bref no mete `aws_request_id` en el JSON; la transacción (o la sesión)
+    // basta como traza porque la cola procesa un job de cada una a la vez.
+    const traceId =
+      ext.ctx.aws_request_id ?? ext.ctx.transaction_id ?? ext.ctx.session_id;
     if (!traceId) return {};
 
     const hasRequest = ext.request.url !== undefined;
